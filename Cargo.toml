@@ -1,0 +1,16 @@
+[package]
+name = "routing-simple-node"
+version = "0.1.0"
+authors = ["konchunas@gmail.com <konchunas@gmail.com>"]
+
+[dependencies]
+routing="~0.34.0"
+unwrap = "~1.1.0"
+clap = "~2.25.1"
+shrust = "~0.0.4"
+log = "~0.3.8"
+env_logger = "0.3"
+lru_time_cache = "~0.7.0"
+maidsafe_utilities = "~0.14.0"
+serde = "~1.0.11"
+serde_derive = "~1.0.11"
