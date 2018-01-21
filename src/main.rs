@@ -83,7 +83,7 @@ fn create_shell(first_node: bool) -> Receiver<Vec<u8>>
     });
     shell.new_command("message", "Send a message", 1, |io, sender, args| {
         let message = args[0].to_string();
-        writeln!(io, "message `{}` sent", message);
+        try!(writeln!(io, "message `{}` sent", message));
         let bytes = message.into_bytes();
         sender.send(bytes).unwrap();
         Ok(())
@@ -102,7 +102,7 @@ fn create_shell(first_node: bool) -> Receiver<Vec<u8>>
                     let mut io = ShellIO::new_io(stream);
                     shell.run_loop(&mut io);
                 }
-                Err(e) =>
+                Err(_) =>
                 { 
                     //error!("{}", e);  
                 }
@@ -118,7 +118,6 @@ pub struct ExampleNode {
     /// The node interface to the Routing library.
     node: Node,
     idata_store: HashMap<XorName, ImmutableData>,
-    mdata_store: HashMap<(XorName, u64), MutableData>,
     client_accounts: HashMap<XorName, u64>,
     request_cache: LruCache<MessageId, (Authority<XorName>, Authority<XorName>)>,
     first: bool,
@@ -135,7 +134,6 @@ impl ExampleNode {
         ExampleNode {
             node: node,
             idata_store: HashMap::new(),
-            mdata_store: HashMap::new(),
             client_accounts: HashMap::new(),
             request_cache: LruCache::with_expiry_duration(Duration::from_secs(60 * 10)),
             first: first,
@@ -247,18 +245,10 @@ impl ExampleNode {
             Request::PutIData { data, msg_id } => {
                 self.handle_put_idata_request(src, dst, data, msg_id)
             }
-            Request::GetMDataShell { name, tag, msg_id } => {
-                self.handle_get_mdata_shell_request(src, dst, name, tag, msg_id)
-            }
-            Request::ListMDataEntries { name, tag, msg_id } => {
-                self.handle_list_mdata_entries_request(src, dst, name, tag, msg_id)
-            }
-            Request::GetMDataValue {
-                name,
-                tag,
-                key,
-                msg_id,
-            } => self.handle_get_mdata_value_request(src, dst, name, tag, key, msg_id),
+            Request::GetMDataShell    { .. } |
+            Request::ListMDataEntries { .. } |
+            Request::GetMDataValue    { .. }
+             => warn!("Received mutable request. No mutable database should be implemented for these nodes"),
             _ => {
                 warn!(
                     "{:?} ExampleNode: handle for {:?} unimplemented.",
@@ -282,12 +272,9 @@ impl ExampleNode {
                     unwrap!(self.node.send_put_idata_response(src, dst, res, msg_id));
                 }
             }
-            (Response::PutMData { res, msg_id }, Authority::NodeManager(_)) |
-            (Response::PutMData { res, msg_id }, Authority::ManagedNode(_)) => {
-                if let Some((src, dst)) = self.request_cache.remove(&msg_id) {
-                    unwrap!(self.node.send_put_mdata_response(src, dst, res, msg_id));
-                }
-            }
+            (Response::PutMData { .. }, Authority::NodeManager(_)) |
+            (Response::PutMData { .. }, Authority::ManagedNode(_)) => 
+                warn!("Attempt to use response on mutable data request"),
             _ => unreachable!(),
         }
     }
@@ -365,101 +352,6 @@ impl ExampleNode {
         }
     }
 
-    fn handle_get_mdata_shell_request(
-        &mut self,
-        src: Authority<XorName>,
-        dst: Authority<XorName>,
-        name: XorName,
-        tag: u64,
-        msg_id: MessageId,
-    ) {
-        match (src, dst) {
-            (src @ Authority::Client { .. }, dst @ Authority::NaeManager(_)) => {
-                let res = if let Some(data) = self.mdata_store.get(&(name, tag)) {
-                    Ok(data.shell())
-                } else {
-                    info!("{:?} GetMDataShell request failed for {:?}.",
-                           self.get_debug_name(),
-                           (name, tag));
-                    Err(ClientError::NoSuchData)
-                };
-
-                unwrap!(self.node.send_get_mdata_shell_response(
-                    dst,
-                    src,
-                    res,
-                    msg_id,
-                ))
-            }
-            (src, dst) => unreachable!("Wrong Src and Dest Authority {:?} - {:?}", src, dst),
-        }
-    }
-
-    fn handle_list_mdata_entries_request(
-        &mut self,
-        src: Authority<XorName>,
-        dst: Authority<XorName>,
-        name: XorName,
-        tag: u64,
-        msg_id: MessageId,
-    ) {
-        match (src, dst) {
-            (src @ Authority::Client { .. }, dst @ Authority::NaeManager(_)) => {
-                let res = if let Some(data) = self.mdata_store.get(&(name, tag)) {
-                    Ok(data.entries().clone())
-                } else {
-                    info!("{:?} ListMDataEntries request failed for {:?}.",
-                           self.get_debug_name(),
-                           (name, tag));
-                    Err(ClientError::NoSuchData)
-                };
-
-                unwrap!(self.node.send_list_mdata_entries_response(
-                    dst,
-                    src,
-                    res,
-                    msg_id,
-                ))
-            }
-            (src, dst) => unreachable!("Wrong Src and Dest Authority {:?} - {:?}", src, dst),
-        }
-    }
-
-    fn handle_get_mdata_value_request(
-        &mut self,
-        src: Authority<XorName>,
-        dst: Authority<XorName>,
-        name: XorName,
-        tag: u64,
-        key: Vec<u8>,
-        msg_id: MessageId,
-    ) {
-        match (src, dst) {
-            (src @ Authority::Client { .. }, dst @ Authority::NaeManager(_)) => {
-                let res = self.mdata_store
-                    .get(&(name, tag))
-                    .ok_or(ClientError::NoSuchData)
-                    .and_then(|data| {
-                        data.get(&key).cloned().ok_or(ClientError::NoSuchEntry)
-                    })
-                    .map_err(|error| {
-                        info!("{:?} GetMDataValue request failed for {:?}.",
-                                        self.get_debug_name(),
-                                        (name, tag));
-                        error
-                    });
-
-                unwrap!(self.node.send_get_mdata_value_response(
-                    dst,
-                    src,
-                    res,
-                    msg_id,
-                ))
-            }
-            (src, dst) => unreachable!("Wrong Src and Dest Authority {:?} - {:?}", src, dst),
-        }
-    }
-
     fn handle_node_added(&mut self, name: XorName) {
         self.send_refresh(MessageId::from_added_node(name));
     }
@@ -482,15 +374,6 @@ impl ExampleNode {
         for id in &deleted_data {
             let _ = self.idata_store.remove(id);
         }
-
-        let deleted_data: Vec<_> = self.mdata_store
-            .iter()
-            .filter(|&(&(ref name, _), _)| !prefix.matches(name))
-            .map(|(id, _)| *id)
-            .collect();
-        for id in &deleted_data {
-            let _ = self.mdata_store.remove(id);
-        }
     }
 
     fn send_refresh(&mut self, msg_id: MessageId) {
@@ -507,13 +390,6 @@ impl ExampleNode {
         for data in self.idata_store.values() {
             let refresh_content = RefreshContent::ImmutableData(data.clone());
             let content = unwrap!(serialise(&refresh_content));
-            let auth = Authority::NaeManager(*data.name());
-            unwrap!(self.node.send_refresh_request(auth, auth, content, msg_id));
-        }
-
-        for data in self.mdata_store.values() {
-            let content = RefreshContent::MutableData(data.clone());
-            let content = unwrap!(serialise(&content));
             let auth = Authority::NaeManager(*data.name());
             unwrap!(self.node.send_refresh_request(auth, auth, content, msg_id));
         }
@@ -539,15 +415,7 @@ impl ExampleNode {
                 );
                 let _ = self.idata_store.insert(*data.name(), data);
             }
-            RefreshContent::MutableData(data) => {
-                info!(
-                    "{:?} handle_refresh for mutable data. name: {:?}, tag: {}",
-                    self.get_debug_name(),
-                    data.name(),
-                    data.tag()
-                );
-                let _ = self.mdata_store.insert((*data.name(), data.tag()), data);
-            }
+            RefreshContent::MutableData(_) => { }
         }
     }
 
