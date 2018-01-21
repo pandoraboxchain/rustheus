@@ -5,12 +5,15 @@
             "type": "lldb",
             "request": "launch",
             "name": "Debug",
-            "program": "${workspaceRoot}/target/debug/pandora",
-            "args": ["--output=node"],
+            "program": "${workspaceRoot}/target/debug/routing-simple-node",
+            "args": [],
             "cwd": "${workspaceRoot}",
             "preLaunchTask": "build",
             "terminal": "integrated",
-            "sourceLanguages": ["rust"]
+            "sourceLanguages": ["rust"],
+            "env": {
+                "RUST_LOG":"debug,info"
+            }
         }
     ]
 }

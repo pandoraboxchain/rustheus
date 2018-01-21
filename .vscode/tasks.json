@@ -10,13 +10,13 @@
     "command": "cargo",
     "isShellCommand": true,
     "suppressTaskName": true,
-    "runner": "terminal",
+    "runner": "process",
     "tasks": [
         {
             "taskName": "build",
             "isBuildCommand": true,
             "args": [ "build", "-v" ],
-            "showOutput": "always",
+            "showOutput": "silent",
             "problemMatcher": {
                 "owner": "rust",
                 "fileLocation": [

@@ -19,7 +19,10 @@ use std::time::Duration;
 use clap::*;
 use std::thread;
 use shrust::{Shell, ShellIO};
+use std::net::TcpListener;
 use std::io::Write;
+use std::sync::mpsc;
+use std::sync::mpsc::{Receiver, TryRecvError};
 
 fn main() {
     env_logger::init().unwrap();
@@ -43,16 +46,71 @@ fn main() {
     
     let mut node = ExampleNode::new(first_node);
     node.run();
+}
 
-    //info!("shell is about to start");
+fn handle_input_event(node: &mut Node, input: &Vec<u8>)
+{
+    send_a_message(node, &input);
+}
+
+fn send_a_message(node: &mut Node, message: &Vec<u8>)
+{
+    let node_name = *unwrap!(node.id()).name();
+    let src = Authority::ManagedNode(node_name);
+    let dst = Authority::NodeManager(node_name);
+
+    unwrap!(node.send_put_idata_request(
+        src,
+        dst, 
+        ImmutableData::new(message.clone()),
+        MessageId::new()
+    ));
+
+    info!("Send a message from {:?} to its node manager saying {:?}", node_name, message);
+}
+
+fn create_shell(first_node: bool) -> Receiver<Vec<u8>>
+{    
+    let port = if first_node { "1234" } else { "1235" };
+    info!("Node is about to start. You may now run $ telnet localhost {}", port);
     
-    // let mut shell = Shell::new(());
-    // shell.new_command_noargs("hello", "Say 'hello' to the world", |io, _| {
-    //     try!(writeln!(io, "Hello World !!!"));
-    //     Ok(())
-    // });
+    let (sender, receiver) = mpsc::channel();   
 
-    // shell.run_loop(&mut ShellIO::default());
+    let mut shell = Shell::new(sender);
+    shell.new_command_noargs("hello", "Say 'hello' to the world", |io, _| {
+        try!(writeln!(io, "Hello World !!!"));
+        Ok(())
+    });
+    shell.new_command("message", "Send a message", 1, |io, sender, args| {
+        let message = args[0].to_string();
+        writeln!(io, "message `{}` sent", message);
+        let bytes = message.into_bytes();
+        sender.send(bytes).unwrap();
+        Ok(())
+    });
+
+    let serv = TcpListener::bind(String::from("0.0.0.0:") + port).expect("Cannot open socket");
+    serv.set_nonblocking(true).expect("Cannot set non-blocking");
+
+    thread::spawn(move || 
+    {
+        for stream in serv.incoming() {
+        match stream {
+                Ok(stream) => 
+                {
+                    let mut shell = shell.clone();
+                    let mut io = ShellIO::new_io(stream);
+                    shell.run_loop(&mut io);
+                }
+                Err(e) =>
+                { 
+                    //error!("{}", e);  
+                }
+            }
+        }
+    });
+
+    return receiver;
 }
 
 /// A simple example node implementation for a network based on the Routing library.
@@ -63,7 +121,8 @@ pub struct ExampleNode {
     mdata_store: HashMap<(XorName, u64), MutableData>,
     client_accounts: HashMap<XorName, u64>,
     request_cache: LruCache<MessageId, (Authority<XorName>, Authority<XorName>)>,
-    first: bool
+    first: bool,
+    input_listener: Option<Receiver<Vec<u8>>>
 }
 
 impl ExampleNode {
@@ -79,78 +138,99 @@ impl ExampleNode {
             mdata_store: HashMap::new(),
             client_accounts: HashMap::new(),
             request_cache: LruCache::with_expiry_duration(Duration::from_secs(60 * 10)),
-            first: first
+            first: first,
+            input_listener: None
         }
     }
 
-    /// Runs the event loop, handling events raised by the Routing library.
-    pub fn run(&mut self) {
-        while let Ok(event) = self.node.next_ev() {
-            match event {
-                Event::Request { request, src, dst } => self.handle_request(request, src, dst),
-                Event::Response { response, src, dst } => self.handle_response(response, src, dst),
-                Event::NodeAdded(name, _routing_table) => {
-                    info!(
-                        "{} Received NodeAdded event {:?}",
-                        self.get_debug_name(),
-                        name
-                    );
-                    self.handle_node_added(name);
-                    // if !self.first
-                    // {
-                    //     thread::sleep(Duration::from_secs(2));
-                    //     self.send_a_message(name);
-                    // }
-                }
-                Event::NodeLost(name, _routing_table) => {
-                    info!(
-                        "{} Received NodeLost event {:?}",
-                        self.get_debug_name(),
-                        name
-                    );
-                }
-                Event::Connected => {
-                    info!("{} Received connected event", self.get_debug_name());
-                }
-                Event::Terminate => {
-                    info!("{} Received Terminate event", self.get_debug_name());
-                    break;
-                }
-                Event::RestartRequired => {
-                    info!("{} Received RestartRequired event", self.get_debug_name());
-                    self.node = unwrap!(Node::builder().create());
-                }
-                Event::SectionSplit(prefix) => {
-                    info!(
-                        "{} Received SectionSplit event {:?}",
-                        self.get_debug_name(),
-                        prefix
-                    );
-                    self.handle_split(prefix);
-                }
-                Event::SectionMerge(prefix) => {
-                    info!(
-                        "{} Received SectionMerge event {:?}",
-                        self.get_debug_name(),
-                        prefix
-                    );
-                    let pfx = Prefix::new(prefix.bit_count() + 1, *unwrap!(self.node.id()).name());
-                    self.send_refresh(MessageId::from_lost_node(pfx.lower_bound()));
-                }
-                Event::Tick =>
+    pub fn run_input_loop(&mut self)
+    {
+        let ref listener = self.input_listener.as_ref().unwrap();
+        while let Ok(input) = listener.recv()
+        {
+            send_a_message(&mut self.node, &input);
+        }
+    }
+
+
+    fn run(&mut self)
+    {
+        let mut disconnected = false;
+        while !disconnected
+        {
+            if let Some(ref listener) = self.input_listener
+            {
+                if let Ok(ref input) = listener.recv()
                 {
-                    if !self.first
-                    {
-                        self.send_a_message_no_destination();
-                    }
-                    info!("Tick");
-                    
-                }
-                event => {
-                    info!("{} Received {:?} event", self.get_debug_name(), event);
+                    handle_input_event(&mut self.node, input);
                 }
             }
+
+            match self.node.try_next_ev() {
+                Ok(event) => {
+                    disconnected = !self.handle_node_event(event)
+                },
+                Err(error) => if error == TryRecvError::Disconnected { disconnected = true }
+            }
+            thread::sleep(Duration::from_millis(400));  //TODO make select! macro to wait for recv any of two threads
         }
+    }
+    /// Runs the event loop, handling events raised by the Routing library.
+    fn handle_node_event(&mut self, event: Event) -> bool
+    {  
+        match event {
+            Event::Request { request, src, dst } => self.handle_request(request, src, dst),
+            Event::Response { response, src, dst } => self.handle_response(response, src, dst),
+            Event::NodeAdded(name, _routing_table) => {
+                info!(
+                    "{} Received NodeAdded event {:?}",
+                    self.get_debug_name(),
+                    name
+                );
+                self.input_listener = Some(create_shell(self.first));
+                self.handle_node_added(name);
+            }
+            Event::NodeLost(name, _routing_table) => {
+                info!(
+                    "{} Received NodeLost event {:?}",
+                    self.get_debug_name(),
+                    name
+                );
+            }
+            Event::Connected => {
+                info!("{} Received connected event", self.get_debug_name());
+            }
+            Event::Terminate => {
+                info!("{} Received Terminate event", self.get_debug_name());
+                return false;
+            }
+            Event::RestartRequired => {
+                info!("{} Received RestartRequired event", self.get_debug_name());
+                self.node = unwrap!(Node::builder().create());
+            }
+            Event::SectionSplit(prefix) => {
+                info!(
+                    "{} Received SectionSplit event {:?}",
+                    self.get_debug_name(),
+                    prefix
+                );
+                self.handle_split(prefix);
+            }
+            Event::SectionMerge(prefix) => {
+                info!(
+                    "{} Received SectionMerge event {:?}",
+                    self.get_debug_name(),
+                    prefix
+                );
+                let pfx = Prefix::new(prefix.bit_count() + 1, *unwrap!(self.node.id()).name());
+                self.send_refresh(MessageId::from_lost_node(pfx.lower_bound()));
+            }
+            Event::Tick =>
+            {
+                info!("Tick");
+            }
+        }
+        return true;
     }
 
     fn handle_request(
@@ -264,7 +344,7 @@ impl ExampleNode {
                     "{:?} Put Request: Updating ClientManager: key {:?}, value {:?}",
                     self.get_debug_name(),
                     data.name(),
-                    data
+                    data.value()
                 );
                 if self.request_cache.insert(msg_id, (dst, src)).is_none() {
                     let src = dst;
@@ -469,40 +549,6 @@ impl ExampleNode {
                 let _ = self.mdata_store.insert((*data.name(), data.tag()), data);
             }
         }
-    }
-
-    fn send_a_message(&mut self, destination_name: XorName )
-    {
-        let node_name = *unwrap!(self.node.id()).name();
-
-        let src = Authority::ManagedNode(node_name);
-        let dst = Authority::ManagedNode(destination_name);
-
-        unwrap!(self.node.send_put_idata_request(
-            src,
-            dst, 
-            ImmutableData::new(vec![1,2,3,4]),
-            MessageId::new()
-        ));
-
-        info!("Send a message! from {:?} to {:?}", node_name, destination_name);
-    }
-
-    fn send_a_message_no_destination(&mut self)
-    {
-        let node_name = *unwrap!(self.node.id()).name();
-
-        let src = Authority::ManagedNode(node_name);
-        let dst = Authority::NodeManager(node_name);
-
-        unwrap!(self.node.send_put_idata_request(
-            src,
-            dst, 
-            ImmutableData::new(vec![1,2,3,4]),
-            MessageId::new()
-        ));
-
-        info!("Send a message no dst! from {:?}", node_name);
     }
 
     fn get_debug_name(&self) -> String {
