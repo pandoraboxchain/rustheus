@@ -24,6 +24,9 @@ use std::io::Write;
 use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, TryRecvError};
 
+
+type CommandAndArgs = (String, Vec<String>);
+
 fn main() {
     env_logger::init().unwrap();
     let matches = App::new("simple_node")
@@ -48,9 +51,10 @@ fn main() {
     node.run();
 }
 
-fn handle_input_event(node: &mut Node, input: &Vec<u8>)
+fn send_a_message_string(node: &mut Node, message: &String)
 {
-    send_a_message(node, &input);
+    let bytes = message.clone().into_bytes();
+    send_a_message(node, &bytes);
 }
 
 fn send_a_message(node: &mut Node, message: &Vec<u8>)
@@ -69,7 +73,17 @@ fn send_a_message(node: &mut Node, message: &Vec<u8>)
     info!("Send a message from {:?} to its node manager saying {:?}", node_name, message);
 }
 
-fn create_shell(first_node: bool) -> Receiver<Vec<u8>>
+fn handle_cli_command(command: String, sender: &mut mpsc::Sender<CommandAndArgs>,  args: &[&str])
+{
+    let mut arguments: Vec<String> = vec![];
+    for argument in args
+    {
+        arguments.push(argument.to_string());
+    }
+    sender.send((command, arguments)).unwrap();
+}
+
+fn create_shell(first_node: bool) -> Receiver<CommandAndArgs>
 {    
     let port = if first_node { "1234" } else { "1235" };
     info!("Node is about to start. You may now run $ telnet localhost {}", port);
@@ -81,13 +95,7 @@ fn create_shell(first_node: bool) -> Receiver<Vec<u8>>
         try!(writeln!(io, "Hello World !!!"));
         Ok(())
     });
-    shell.new_command("message", "Send a message", 1, |io, sender, args| {
-        let message = args[0].to_string();
-        try!(writeln!(io, "message `{}` sent", message));
-        let bytes = message.into_bytes();
-        sender.send(bytes).unwrap();
-        Ok(())
-    });
+    shell.new_command("send", "Send a message", 1, |_, sender, args| { handle_cli_command(String::from("send"), sender, args); Ok(()) });
 
     let serv = TcpListener::bind(String::from("0.0.0.0:") + port).expect("Cannot open socket");
     serv.set_nonblocking(true).expect("Cannot set non-blocking");
@@ -121,7 +129,7 @@ pub struct ExampleNode {
     client_accounts: HashMap<XorName, u64>,
     request_cache: LruCache<MessageId, (Authority<XorName>, Authority<XorName>)>,
     first: bool,
-    input_listener: Option<Receiver<Vec<u8>>>
+    input_listener: Option<Receiver<CommandAndArgs>>
 }
 
 impl ExampleNode {
@@ -141,16 +149,6 @@ impl ExampleNode {
         }
     }
 
-    pub fn run_input_loop(&mut self)
-    {
-        let ref listener = self.input_listener.as_ref().unwrap();
-        while let Ok(input) = listener.recv()
-        {
-            send_a_message(&mut self.node, &input);
-        }
-    }
-
-
     fn run(&mut self)
     {
         let mut disconnected = false;
@@ -160,7 +158,13 @@ impl ExampleNode {
             {
                 if let Ok(ref input) = listener.recv()
                 {
-                    handle_input_event(&mut self.node, input);
+                    let ref command = input.0;
+                    let ref args = input.1;
+                    match command.as_ref()
+                    {
+                        "send" => send_a_message_string(&mut self.node, &args[0]),
+                        _ => { info!("No such command") }
+                    }
                 }
             }
 
