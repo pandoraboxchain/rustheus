@@ -4,6 +4,9 @@ extern crate lru_time_cache;
 extern crate maidsafe_utilities;
 extern crate env_logger;
 extern crate shrust;
+extern crate bitcrypto as crypto;
+extern crate chain;
+extern crate serialization as ser;
 
 #[macro_use] extern crate log;
 #[macro_use] extern crate unwrap;
@@ -23,9 +26,13 @@ use std::net::TcpListener;
 use std::io::Write;
 use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, TryRecvError};
-
+use std::time::{SystemTime, UNIX_EPOCH};
+use chain::{BlockHeader, Block, Transaction, TransactionInput, TransactionOutput, OutPoint};
+use crypto::DHash256;
+use ser::{deserialize, serialize, serialize_with_flags, SERIALIZE_TRANSACTION_WITNESS};
 
 type CommandAndArgs = (String, Vec<String>);
+type Mempool = Vec<Transaction>;
 
 fn main() {
     env_logger::init().unwrap();
@@ -49,6 +56,87 @@ fn main() {
     
     let mut node = ExampleNode::new(first_node);
     node.run();
+}
+
+fn create_example_transaction(node: &mut Node, mempool: &mut Mempool, value_string: &String)
+{
+    let value = value_string.parse::<u64>().unwrap();
+    let transaction = Transaction {
+        version: 1,
+        inputs: vec![TransactionInput {
+            previous_output: OutPoint {
+                hash: "fff7f7881a8099afa6940d42d1e7f6362bec38171ea3edf433541db4e4ad969f".into(),
+                index: 0,
+            },
+            script_sig: "4830450221008b9d1dc26ba6a9cb62127b02742fa9d754cd3bebf337f7a55d114c8e5cdd30be022040529b194ba3f9281a99f2b1c0a19c0489bc22ede944ccf4ecbab4cc618ef3ed01".into(),
+            sequence: 0xffffffee,
+            script_witness: vec![],
+        }, TransactionInput {
+            previous_output: OutPoint {
+                hash: "ef51e1b804cc89d182d279655c3aa89e815b1b309fe287d9b2b55d57b90ec68a".into(),
+                index: 1,
+            },
+            script_sig: "".into(),
+            sequence: 0xffffffff,
+            script_witness: vec![
+                "304402203609e17b84f6a7d30c80bfa610b5b4542f32a8a0d5447a12fb1366d7f01cc44a0220573a954c4518331561406f90300e8f3358f51928d43c212a8caed02de67eebee01".into(),
+                "025476c2e83188368da1ff3e292e7acafcdb3566bb0ad253f62fc70f07aeee6357".into(),
+            ],
+        }],
+        outputs: vec![TransactionOutput {
+            value: 0x0000000006b22c20,
+            script_pubkey: "76a9148280b37df378db99f66f85c95a783a76ac7a6d5988ac".into(),
+        }, TransactionOutput {
+            value: 0x000000000d519390,
+            script_pubkey: "76a9143bde42dbee7e4dbe6a21b2d50ce2f0167faa815988ac".into(),
+        }],
+        lock_time: 0x00000011,
+    };
+
+
+    let serialized = serialize(&transaction);
+    send_a_message(node, &serialized);
+    
+    mempool.push(transaction);
+}
+
+fn handle_transaction(mempool: &mut Mempool, data: &Vec<u8>)
+{
+    let deserialized = deserialize::<_, Transaction>(&data[..]);
+    match deserialized
+    {
+        Ok(transaction) => {
+            println!(" received transaction {:?}", transaction);
+            mempool.push(transaction);
+        }
+        Err(_) => {}
+    }
+}
+
+fn sign_block(node: &mut Node, mempool: &mut Mempool)
+{
+    let current_time = SystemTime::now();
+    let time_since_the_epoch = current_time.duration_since(UNIX_EPOCH).expect("Time went backwards");
+    let dummy_header = BlockHeader {
+        version: 1,
+        previous_header_hash: DHash256::new().finish(),
+        merkle_root_hash: DHash256::new().finish(),
+        time: time_since_the_epoch.as_secs() as u32,
+        bits: 5.into(),
+        nonce: 6,
+    };
+    let block = Block::new(dummy_header, mempool.clone());
+    
+    let realHeader = BlockHeader {
+        version: 1,
+        previous_header_hash: DHash256::new().finish(),
+        merkle_root_hash: block.witness_merkle_root(),
+        time: time_since_the_epoch.as_secs() as u32,
+        bits: 6.into(),
+        nonce: 5,
+    };
+    println!("signed block header: {:?}", realHeader);
+    let real_block = Block::new(realHeader, mempool.clone());
 }
 
 fn send_a_message_string(node: &mut Node, message: &String)
@@ -96,6 +184,8 @@ fn create_shell(first_node: bool) -> Receiver<CommandAndArgs>
         Ok(())
     });
     shell.new_command("send", "Send a message", 1, |_, sender, args| { handle_cli_command(String::from("send"), sender, args); Ok(()) });
+    shell.new_command("transfer", "Transfer some money", 1, |_, sender, args| { handle_cli_command(String::from("transfer"), sender, args); Ok(()) });
+    shell.new_command("blocksign", "Sign block with all known transactions", 0, |_, sender, args| { handle_cli_command(String::from("blocksign"), sender, args); Ok(()) });
 
     let serv = TcpListener::bind(String::from("0.0.0.0:") + port).expect("Cannot open socket");
     serv.set_nonblocking(true).expect("Cannot set non-blocking");
@@ -129,7 +219,9 @@ pub struct ExampleNode {
     client_accounts: HashMap<XorName, u64>,
     request_cache: LruCache<MessageId, (Authority<XorName>, Authority<XorName>)>,
     first: bool,
-    input_listener: Option<Receiver<CommandAndArgs>>
+    input_listener: Option<Receiver<CommandAndArgs>>,
+    block: Block,
+    mempool: Vec<Transaction>
 }
 
 impl ExampleNode {
@@ -139,13 +231,24 @@ impl ExampleNode {
         let config = Config { dev: Some(dev_config) };
         let node = unwrap!(Node::builder().first(first).config(config).create());
 
+        let random_header = BlockHeader {
+			version: 1,
+			previous_header_hash: [2; 32].into(),
+			merkle_root_hash: [3; 32].into(),
+			time: 4,
+			bits: 5.into(),
+			nonce: 6,
+		};
+
         ExampleNode {
             node: node,
             idata_store: HashMap::new(),
             client_accounts: HashMap::new(),
             request_cache: LruCache::with_expiry_duration(Duration::from_secs(60 * 10)),
             first: first,
-            input_listener: None
+            input_listener: None,
+            block: Block::new(random_header, vec![]),
+            mempool: vec![]
         }
     }
 
@@ -163,6 +266,8 @@ impl ExampleNode {
                     match command.as_ref()
                     {
                         "send" => send_a_message_string(&mut self.node, &args[0]),
+                        "transfer" => create_example_transaction(&mut self.node, &mut self.mempool, &args[0]),
+                        "blocksign" => sign_block(&mut self.node, &mut self.mempool),
                         _ => { info!("No such command") }
                     }
                 }
@@ -340,6 +445,7 @@ impl ExampleNode {
                 if self.request_cache.insert(msg_id, (dst, src)).is_none() {
                     let src = dst;
                     let dst = Authority::NaeManager(*data.name());
+                    handle_transaction(&mut self.mempool, data.value());
                     unwrap!(self.node.send_put_idata_request(src, dst, data, msg_id));
                 } else {
                     warn!("Attempt to reuse message ID {:?}.", msg_id);
