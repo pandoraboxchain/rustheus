@@ -19,5 +19,9 @@ chain = { path = "src/chain" }
 bitcrypto = { path = "src/crypto" }
 serialization = { path = "src/serialization"}
 
+[[bin]]
+path = "src/pandora/main.rs"
+name = "pandora"
+
 [workspace]
 members = ["src/chain", "src/crypto", "src/serialization"]

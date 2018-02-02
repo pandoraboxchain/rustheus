@@ -1,17 +1,3 @@
-extern crate routing;
-extern crate clap;
-extern crate lru_time_cache;
-extern crate maidsafe_utilities;
-extern crate env_logger;
-extern crate shrust;
-extern crate bitcrypto as crypto;
-extern crate chain;
-extern crate serialization as ser;
-
-#[macro_use] extern crate log;
-#[macro_use] extern crate unwrap;
-#[macro_use] extern crate serde_derive;
-
 use lru_time_cache::LruCache;
 use maidsafe_utilities::serialisation::{deserialise, serialise};
 use routing::{Authority, ClientError, Event, EventStream, ImmutableData,
@@ -19,269 +5,72 @@ use routing::{Authority, ClientError, Event, EventStream, ImmutableData,
               Config, DevConfig, XorName};
 use std::collections::HashMap;
 use std::time::Duration;
-use clap::*;
-use std::thread;
-use shrust::{Shell, ShellIO};
-use std::net::TcpListener;
-use std::io::Write;
-use std::sync::mpsc;
-use std::sync::mpsc::{Receiver, TryRecvError};
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::sync::mpsc::{self, Sender, Receiver};
 use chain::{BlockHeader, Block, Transaction, TransactionInput, TransactionOutput, OutPoint};
-use crypto::DHash256;
-use ser::{deserialize, serialize, serialize_with_flags, SERIALIZE_TRANSACTION_WITNESS};
-
-type CommandAndArgs = (String, Vec<String>);
-type Mempool = Vec<Transaction>;
-
-fn main() {
-    env_logger::init().unwrap();
-    let matches = App::new("simple_node")
-        .about(
-            "The crust peer will run, using any config file it can find to \
-                try and bootstrap off any provided peers.",
-        )
-        .arg(
-            Arg::with_name("first")
-                .short("f")
-                .long("first")
-                .help(
-                    "Keep sending random data at a maximum speed of RATE bytes/second to the \
-                   first connected peer.",
-                )
-        )
-        .get_matches();
-
-    let first_node = matches.is_present("first");
-    
-    let mut node = ExampleNode::new(first_node);
-    node.run();
-}
-
-fn create_example_transaction(node: &mut Node, mempool: &mut Mempool, value_string: &String)
-{
-    let value = value_string.parse::<u64>().unwrap();
-    let transaction = Transaction {
-        version: 1,
-        inputs: vec![TransactionInput {
-            previous_output: OutPoint {
-                hash: "fff7f7881a8099afa6940d42d1e7f6362bec38171ea3edf433541db4e4ad969f".into(),
-                index: 0,
-            },
-            script_sig: "4830450221008b9d1dc26ba6a9cb62127b02742fa9d754cd3bebf337f7a55d114c8e5cdd30be022040529b194ba3f9281a99f2b1c0a19c0489bc22ede944ccf4ecbab4cc618ef3ed01".into(),
-            sequence: 0xffffffee,
-            script_witness: vec![],
-        }, TransactionInput {
-            previous_output: OutPoint {
-                hash: "ef51e1b804cc89d182d279655c3aa89e815b1b309fe287d9b2b55d57b90ec68a".into(),
-                index: 1,
-            },
-            script_sig: "".into(),
-            sequence: 0xffffffff,
-            script_witness: vec![
-                "304402203609e17b84f6a7d30c80bfa610b5b4542f32a8a0d5447a12fb1366d7f01cc44a0220573a954c4518331561406f90300e8f3358f51928d43c212a8caed02de67eebee01".into(),
-                "025476c2e83188368da1ff3e292e7acafcdb3566bb0ad253f62fc70f07aeee6357".into(),
-            ],
-        }],
-        outputs: vec![TransactionOutput {
-            value: 0x0000000006b22c20,
-            script_pubkey: "76a9148280b37df378db99f66f85c95a783a76ac7a6d5988ac".into(),
-        }, TransactionOutput {
-            value: 0x000000000d519390,
-            script_pubkey: "76a9143bde42dbee7e4dbe6a21b2d50ce2f0167faa815988ac".into(),
-        }],
-        lock_time: 0x00000011,
-    };
-
-
-    let serialized = serialize(&transaction);
-    send_a_message(node, &serialized);
-    
-    mempool.push(transaction);
-}
-
-fn handle_transaction(mempool: &mut Mempool, data: &Vec<u8>)
-{
-    let deserialized = deserialize::<_, Transaction>(&data[..]);
-    match deserialized
-    {
-        Ok(transaction) => {
-            println!(" received transaction {:?}", transaction);
-            mempool.push(transaction);
-        }
-        Err(_) => {}
-    }
-}
-
-fn sign_block(node: &mut Node, mempool: &mut Mempool)
-{
-    let current_time = SystemTime::now();
-    let time_since_the_epoch = current_time.duration_since(UNIX_EPOCH).expect("Time went backwards");
-    let dummy_header = BlockHeader {
-        version: 1,
-        previous_header_hash: DHash256::new().finish(),
-        merkle_root_hash: DHash256::new().finish(),
-        time: time_since_the_epoch.as_secs() as u32,
-        bits: 5.into(),
-        nonce: 6,
-    };
-    let block = Block::new(dummy_header, mempool.clone());
-    
-    let realHeader = BlockHeader {
-        version: 1,
-        previous_header_hash: DHash256::new().finish(),
-        merkle_root_hash: block.witness_merkle_root(),
-        time: time_since_the_epoch.as_secs() as u32,
-        bits: 6.into(),
-        nonce: 5,
-    };
-    println!("signed block header: {:?}", realHeader);
-    let real_block = Block::new(realHeader, mempool.clone());
-}
-
-fn send_a_message_string(node: &mut Node, message: &String)
-{
-    let bytes = message.clone().into_bytes();
-    send_a_message(node, &bytes);
-}
-
-fn send_a_message(node: &mut Node, message: &Vec<u8>)
-{
-    let node_name = *unwrap!(node.id()).name();
-    let src = Authority::ManagedNode(node_name);
-    let dst = Authority::NodeManager(node_name);
-
-    unwrap!(node.send_put_idata_request(
-        src,
-        dst, 
-        ImmutableData::new(message.clone()),
-        MessageId::new()
-    ));
-
-    info!("Send a message from {:?} to its node manager saying {:?}", node_name, message);
-}
-
-fn handle_cli_command(command: String, sender: &mut mpsc::Sender<CommandAndArgs>,  args: &[&str])
-{
-    let mut arguments: Vec<String> = vec![];
-    for argument in args
-    {
-        arguments.push(argument.to_string());
-    }
-    sender.send((command, arguments)).unwrap();
-}
-
-fn create_shell(first_node: bool) -> Receiver<CommandAndArgs>
-{    
-    let port = if first_node { "1234" } else { "1235" };
-    info!("Node is about to start. You may now run $ telnet localhost {}", port);
-    
-    let (sender, receiver) = mpsc::channel();   
-
-    let mut shell = Shell::new(sender);
-    shell.new_command_noargs("hello", "Say 'hello' to the world", |io, _| {
-        try!(writeln!(io, "Hello World !!!"));
-        Ok(())
-    });
-    shell.new_command("send", "Send a message", 1, |_, sender, args| { handle_cli_command(String::from("send"), sender, args); Ok(()) });
-    shell.new_command("transfer", "Transfer some money", 1, |_, sender, args| { handle_cli_command(String::from("transfer"), sender, args); Ok(()) });
-    shell.new_command("blocksign", "Sign block with all known transactions", 0, |_, sender, args| { handle_cli_command(String::from("blocksign"), sender, args); Ok(()) });
-
-    let serv = TcpListener::bind(String::from("0.0.0.0:") + port).expect("Cannot open socket");
-    serv.set_nonblocking(true).expect("Cannot set non-blocking");
-
-    thread::spawn(move || 
-    {
-        for stream in serv.incoming() {
-        match stream {
-                Ok(stream) => 
-                {
-                    let mut shell = shell.clone();
-                    let mut io = ShellIO::new_io(stream);
-                    shell.run_loop(&mut io);
-                }
-                Err(_) =>
-                { 
-                    //error!("{}", e);  
-                }
-            }
-        }
-    });
-
-    return receiver;
-}
+use chain::bytes::Bytes;
 
 /// A simple example node implementation for a network based on the Routing library.
-pub struct ExampleNode {
+pub struct NetworkNode {
     /// The node interface to the Routing library.
     node: Node,
     idata_store: HashMap<XorName, ImmutableData>,
     client_accounts: HashMap<XorName, u64>,
     request_cache: LruCache<MessageId, (Authority<XorName>, Authority<XorName>)>,
     first: bool,
-    input_listener: Option<Receiver<CommandAndArgs>>,
-    block: Block,
-    mempool: Vec<Transaction>
+
+    bytes_received_tx: Sender<Bytes>,   
+    bytes_received_rx: Receiver<Bytes>, //public
+    
+    bytes_to_send_tx: Sender<Bytes>,  //public
+    bytes_to_send_rx: Receiver<Bytes>  
 }
 
-impl ExampleNode {
+impl NetworkNode {
     /// Creates a new node and attempts to establish a connection to the network.
-    pub fn new(first: bool) -> ExampleNode {
+    pub fn new(first: bool) -> NetworkNode {
         let dev_config = DevConfig { allow_multiple_lan_nodes: true, ..Default::default() };
         let config = Config { dev: Some(dev_config) };
         let node = unwrap!(Node::builder().first(first).config(config).create());
 
-        let random_header = BlockHeader {
-			version: 1,
-			previous_header_hash: [2; 32].into(),
-			merkle_root_hash: [3; 32].into(),
-			time: 4,
-			bits: 5.into(),
-			nonce: 6,
-		};
+        let (recv_tx, recv_rx) = mpsc::channel();
+        let (send_tx, send_rx) = mpsc::channel();
 
-        ExampleNode {
+        NetworkNode {
             node: node,
             idata_store: HashMap::new(),
             client_accounts: HashMap::new(),
             request_cache: LruCache::with_expiry_duration(Duration::from_secs(60 * 10)),
             first: first,
-            input_listener: None,
-            block: Block::new(random_header, vec![]),
-            mempool: vec![]
+
+            bytes_received_tx: recv_tx,   
+            bytes_received_rx: recv_rx, //public
+            
+            bytes_to_send_tx: send_tx,  //public
+            bytes_to_send_rx: send_rx 
         }
     }
 
-    fn run(&mut self)
+    pub fn run(&mut self)
     {
-        let mut disconnected = false;
-        while !disconnected
+        while let Ok(event) = self.node.next_ev()
         {
-            if let Some(ref listener) = self.input_listener
+            if !self.handle_node_event(event)
             {
-                if let Ok(ref input) = listener.recv()
-                {
-                    let ref command = input.0;
-                    let ref args = input.1;
-                    match command.as_ref()
-                    {
-                        "send" => send_a_message_string(&mut self.node, &args[0]),
-                        "transfer" => create_example_transaction(&mut self.node, &mut self.mempool, &args[0]),
-                        "blocksign" => sign_block(&mut self.node, &mut self.mempool),
-                        _ => { info!("No such command") }
-                    }
-                }
+                break;  // terminate network loop
             }
-
-            match self.node.try_next_ev() {
-                Ok(event) => {
-                    disconnected = !self.handle_node_event(event)
-                },
-                Err(error) => if error == TryRecvError::Disconnected { disconnected = true }
-            }
-            thread::sleep(Duration::from_millis(400));  //TODO make select! macro to wait for recv any of two threads
         }
     }
+
+    pub fn get_bytes_to_send_sender(&self) -> Sender<Bytes>
+    {
+        self.bytes_to_send_tx.clone()
+    }
+
+    pub fn get_bytes_received_receiver(&self) -> &Receiver<Bytes>
+    {
+        &self.bytes_received_rx
+    }
+
     /// Runs the event loop, handling events raised by the Routing library.
     fn handle_node_event(&mut self, event: Event) -> bool
     {  
@@ -294,7 +83,6 @@ impl ExampleNode {
                     self.get_debug_name(),
                     name
                 );
-                self.input_listener = Some(create_shell(self.first));
                 self.handle_node_added(name);
             }
             Event::NodeLost(name, _routing_table) => {
@@ -360,7 +148,7 @@ impl ExampleNode {
              => warn!("Received mutable request. No mutable database should be implemented for these nodes"),
             _ => {
                 warn!(
-                    "{:?} ExampleNode: handle for {:?} unimplemented.",
+                    "{:?} NetworkNode: handle for {:?} unimplemented.",
                     self.get_debug_name(),
                     request
                 );
@@ -445,7 +233,7 @@ impl ExampleNode {
                 if self.request_cache.insert(msg_id, (dst, src)).is_none() {
                     let src = dst;
                     let dst = Authority::NaeManager(*data.name());
-                    handle_transaction(&mut self.mempool, data.value());
+                    self.handle_message(data.value());
                     unwrap!(self.node.send_put_idata_request(src, dst, data, msg_id));
                 } else {
                     warn!("Attempt to reuse message ID {:?}.", msg_id);
@@ -458,7 +246,7 @@ impl ExampleNode {
                 }
 
             }
-            _ => unreachable!("ExampleNode: Unexpected dst ({:?})", dst),
+            _ => unreachable!("NetworkNode: Unexpected dst ({:?})", dst),
         }
     }
 
@@ -538,6 +326,11 @@ impl ExampleNode {
             }
         }
     }
+
+    fn handle_message(&mut self, data: &Vec<u8>)
+    {
+        self.bytes_received_tx.send(data.clone().into());
+    }
 }
 
 /// Refresh messages.
@@ -547,4 +340,5 @@ enum RefreshContent {
     ImmutableData(ImmutableData),
     MutableData(MutableData),
 }
+
 
