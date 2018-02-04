@@ -17,11 +17,19 @@ serde_derive = "~1.0.11"
 
 chain = { path = "src/chain" }
 bitcrypto = { path = "src/crypto" }
-serialization = { path = "src/serialization"}
+serialization = { path = "src/serialization" }
+message = { path = "src/message" }
+params = { path = "src/params" }
 
 [[bin]]
 path = "src/pandora/main.rs"
 name = "pandora"
 
 [workspace]
-members = ["src/chain", "src/crypto", "src/serialization"]
+members = [
+    "src/chain",
+    "src/crypto",
+    "src/serialization",
+    "src/params",
+    "src/message"
+    ]

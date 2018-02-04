@@ -1,24 +1,26 @@
 use chain::{BlockHeader, Block, Transaction, TransactionInput, TransactionOutput, OutPoint};
 use crypto::DHash256;
 use std::sync::mpsc::{self, Sender, Receiver};
-use chain::bytes::Bytes;
 use Mempool;
 use ser::{deserialize, serialize, serialize_with_flags, SERIALIZE_TRANSACTION_WITNESS};
 use std::time::{SystemTime, UNIX_EPOCH};
 use executor_tasks::Task;
+use message::Payload;
+use message::types::Tx;
+use message_wrapper::MessageWrapper;
 
 pub struct Executor
 {
     task_receiver: Receiver<Task>,
     task_sender: Sender<Task>,
     //mempool_sender: Sender<Transaction>
+    message_wrapper: MessageWrapper,
     mempool: Mempool,
-    network_sender: Sender<Bytes>
 }
 
 impl Executor
 {
-    pub fn new(mempool: Mempool, network_sender: Sender<Bytes>) -> Self
+    pub fn new(mempool: Mempool, message_wrapper: MessageWrapper) -> Self
     {
         let (task_sender, task_receiver) = mpsc::channel();
         let executor = Executor
@@ -26,7 +28,7 @@ impl Executor
                 task_sender,
                 task_receiver,
                 mempool,
-                network_sender
+                message_wrapper
             };
 
         executor
@@ -88,8 +90,9 @@ impl Executor
         };
 
 
-        let serialized = serialize(&transaction);
-        self.network_sender.send(serialized);
+        let tx = Tx { transaction: transaction.clone() };
+        self.message_wrapper.wrap(&tx);
+        //self.payload_sender.send(Box::new(payload));
         
         self.mempool.transactions.push(transaction);
     }

@@ -560,6 +560,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "message"
+version = "0.1.0"
+dependencies = [
+ "bitcrypto 0.1.0",
+ "byteorder 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "chain 0.1.0",
+ "params 0.1.0",
+ "primitives 0.1.0",
+ "serialization 0.1.0",
+ "serialization_derive 0.1.0",
+]
+
+[[package]]
 name = "mime"
 version = "0.2.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -685,6 +698,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "num-traits 0.1.41 (registry+https://github.com/rust-lang/crates.io-index)",
  "unreachable 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "params"
+version = "0.1.0"
+dependencies = [
+ "chain 0.1.0",
+ "lazy_static 0.2.11 (registry+https://github.com/rust-lang/crates.io-index)",
+ "primitives 0.1.0",
 ]
 
 [[package]]
@@ -825,6 +847,8 @@ dependencies = [
  "log 0.3.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "lru_time_cache 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "maidsafe_utilities 0.14.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "message 0.1.0",
+ "params 0.1.0",
  "routing 0.34.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 1.0.25 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_derive 1.0.25 (registry+https://github.com/rust-lang/crates.io-index)",

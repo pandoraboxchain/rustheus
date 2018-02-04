@@ -7,6 +7,8 @@ extern crate shrust;
 extern crate bitcrypto as crypto;
 extern crate chain;
 extern crate serialization as ser;
+extern crate message;
+extern crate params; 
 
 #[macro_use] extern crate log;
 #[macro_use] extern crate unwrap;
@@ -21,7 +23,10 @@ mod mempool; use mempool::Mempool;
 mod network; use network::NetworkNode;
 mod executor; use executor::Executor;
 mod input_listener; use input_listener::InputListener;
+mod message_wrapper; use message_wrapper::MessageWrapper;
+
 mod executor_tasks;
+mod service; use service::Service;
 
 fn main() {
     env_logger::init().unwrap();
@@ -46,7 +51,8 @@ fn main() {
     let mut network = NetworkNode::new(is_first_node);
     let mempool = Mempool::new();
     let network_sender = network.get_bytes_to_send_sender();
-    let executor = Executor::new(mempool, network_sender);
+    let message_wrapper = MessageWrapper::new(network_sender);
+    let executor = Executor::new(mempool, message_wrapper);
     let input_listener = InputListener::new(is_first_node, executor.get_sender());   
 
     let pandora = PandoraNode
