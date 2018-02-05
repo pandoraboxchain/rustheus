@@ -2,10 +2,9 @@ use chain::{BlockHeader, Block, Transaction, TransactionInput, TransactionOutput
 use crypto::DHash256;
 use std::sync::mpsc::{self, Sender, Receiver};
 use Mempool;
-use ser::{deserialize, serialize, serialize_with_flags, SERIALIZE_TRANSACTION_WITNESS};
+use ser::{deserialize, serialize, serialize_with_flags};
 use std::time::{SystemTime, UNIX_EPOCH};
 use executor_tasks::Task;
-use message::Payload;
 use message::types::Tx;
 use message_wrapper::MessageWrapper;
 
@@ -39,24 +38,25 @@ impl Executor
         self.task_sender.clone()
     }
 
-    fn run(&mut self)
+    pub fn run(&mut self)
     {
         loop
         {
             if let Ok(task) = self.task_receiver.recv()
             {
+                info!("task received, it is {:?}", task);
                 match task
                 {
                     Task::SignBlock() => Executor::sign_block(&self.mempool),
                     Task::CreateExampleTransaction(value) => self.create_example_transaction(&value)
                 }
             }
-        }
+        } 
     }
 
     fn create_example_transaction(&mut self, value_string: &String)
     {
-        let value = value_string.parse::<u64>().unwrap();
+        let _value = value_string.parse::<u64>().unwrap();
         let transaction = Transaction {
             version: 1,
             inputs: vec![TransactionInput {
@@ -111,7 +111,7 @@ impl Executor
         };
         let block = Block::new(dummy_header, mempool.transactions.clone());
         
-        let realHeader = BlockHeader {
+        let real_header = BlockHeader {
             version: 1,
             previous_header_hash: DHash256::new().finish(),
             merkle_root_hash: block.witness_merkle_root(),
@@ -119,7 +119,7 @@ impl Executor
             bits: 6.into(),
             nonce: 5,
         };
-        println!("signed block header: {:?}", realHeader);
-        let real_block = Block::new(realHeader, mempool.transactions.clone());
+        println!("signed block header: {:?}", real_header);
+        let real_block = Block::new(real_header, mempool.transactions.clone());
     }
 }

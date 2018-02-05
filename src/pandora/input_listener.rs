@@ -1,11 +1,9 @@
 use shrust::{Shell, ShellIO};
 use std::net::TcpListener;
 use std::thread;
-use std::sync::mpsc::{self, Sender};
+use std::sync::mpsc::Sender;
 use std::io::Write;
 use executor_tasks::Task;
-
-type CommandAndArgs = (String, Vec<String>);
 
 pub struct InputListener
 {
@@ -17,18 +15,16 @@ impl InputListener
 {
     pub fn new(is_first_node: bool, executor: Sender<Task>) -> Self
     {
-        let shell = Self::create_shell(is_first_node);
+        let _shell = Self::create_shell(is_first_node, executor);
         InputListener { }
     }
 
-    fn create_shell(is_first_node: bool)
+    fn create_shell(is_first_node: bool, executor: Sender<Task>)
     {    
         let port = if is_first_node { "1234" } else { "1235" };
         info!("Node is about to start. You may now run $ telnet localhost {}", port);
-        
-        let (sender, receiver) = mpsc::channel();   
 
-        let mut shell = Shell::new(sender);
+        let mut shell = Shell::new(executor);
         shell.new_command_noargs("hello", "Say 'hello' to the world", |io, _| {
             try!(writeln!(io, "Hello World !!!"));
             Ok(())
@@ -36,13 +32,15 @@ impl InputListener
         shell.new_command("transfer", "Transfer some money", 1, |_, executor, args|
         {
             let task = Task::CreateExampleTransaction(args[0].parse().unwrap());
-            executor.send(task);
+            info!("transfer command was send to executor");
+            try!(executor.send(task));
             Ok(())
         });
-        shell.new_command("blocksign", "Sign block with all known transactions", 0, |_, executor, args|
+        shell.new_command("blocksign", "Sign block with all known transactions", 0, |_, executor, _|
         {
             let task = Task::SignBlock();
-            executor.send(task);
+            info!("sign block command was send to executor");            
+            executor.send(task)?;
             Ok(())
         });
 
@@ -68,15 +66,5 @@ impl InputListener
         });
 
         //return shell;
-    }
-
-    fn handle_cli_command(command: String, sender: &mut mpsc::Sender<CommandAndArgs>,  args: &[&str])
-    {
-        let mut arguments: Vec<String> = vec![];
-        for argument in args
-        {
-            arguments.push(argument.to_string());
-        }
-        sender.send((command, arguments)).unwrap();
     }
 }

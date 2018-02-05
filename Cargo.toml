@@ -31,5 +31,6 @@ members = [
     "src/crypto",
     "src/serialization",
     "src/params",
-    "src/message"
+    "src/message",
+    "vendor/routing"
     ]

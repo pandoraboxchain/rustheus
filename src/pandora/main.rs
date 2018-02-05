@@ -16,8 +16,8 @@ extern crate params;
 
 use clap::*;
 
-use std::time::{SystemTime, UNIX_EPOCH};
-use ser::{deserialize, serialize, serialize_with_flags, SERIALIZE_TRANSACTION_WITNESS};
+use ser::{deserialize, serialize, serialize_with_flags};
+use std::thread;
 
 mod mempool; use mempool::Mempool;
 mod network; use network::NetworkNode;
@@ -26,7 +26,7 @@ mod input_listener; use input_listener::InputListener;
 mod message_wrapper; use message_wrapper::MessageWrapper;
 
 mod executor_tasks;
-mod service; use service::Service;
+mod service;
 
 fn main() {
     env_logger::init().unwrap();
@@ -48,17 +48,23 @@ fn main() {
 
     let is_first_node = matches.is_present("first");
     
-    let mut network = NetworkNode::new(is_first_node);
+    let network = NetworkNode::new(is_first_node);
     let mempool = Mempool::new();
     let network_sender = network.get_bytes_to_send_sender();
     let message_wrapper = MessageWrapper::new(network_sender);
-    let executor = Executor::new(mempool, message_wrapper);
+
+    let mut executor = Executor::new(mempool, message_wrapper);
     let input_listener = InputListener::new(is_first_node, executor.get_sender());   
+    
+    thread::spawn(move || {
+        executor.run();
+    });
+
 
     let pandora = PandoraNode
         {
             network,
-            executor,
+            //executor,
             input_listener
         };
 
@@ -82,6 +88,6 @@ fn main() {
 pub struct PandoraNode
 {
     network: NetworkNode,
-    executor: Executor,
+    //executor: Executor,
     input_listener: InputListener
 }
