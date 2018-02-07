@@ -24,6 +24,6 @@ impl MessageWrapper
     {
         let info = NETWORK_INFO;
 		let message = Message::with_flags(info.magic, info.version, payload, SERIALIZE_TRANSACTION_WITNESS).expect("failed to create outgoing message");
-        self.network_channel.send(message.as_ref().into());
+        self.network_channel.send(message.as_ref().into()).unwrap();
     }
 }

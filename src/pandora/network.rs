@@ -5,9 +5,10 @@ use routing::{Authority, ClientError, Event, EventStream, ImmutableData,
               Config, DevConfig, XorName};
 use std::collections::HashMap;
 use std::time::Duration;
-use std::sync::mpsc::{self, Sender, Receiver};
+use std::sync::mpsc::{self, Sender, Receiver, TryRecvError};
 use chain::{BlockHeader, Block, Transaction, TransactionInput, TransactionOutput, OutPoint};
 use chain::bytes::Bytes;
+use std::thread;
 
 /// A simple example node implementation for a network based on the Routing library.
 pub struct NetworkNode {
@@ -18,8 +19,7 @@ pub struct NetworkNode {
     request_cache: LruCache<MessageId, (Authority<XorName>, Authority<XorName>)>,
     first: bool,
 
-    bytes_received_tx: Sender<Bytes>,   
-    bytes_received_rx: Receiver<Bytes>, //public
+    received_bytes_listener: Sender<Bytes>,
     
     bytes_to_send_tx: Sender<Bytes>,  //public
     bytes_to_send_rx: Receiver<Bytes>  
@@ -27,13 +27,12 @@ pub struct NetworkNode {
 
 impl NetworkNode {
     /// Creates a new node and attempts to establish a connection to the network.
-    pub fn new(first: bool) -> NetworkNode {
+    pub fn new(first: bool, received_bytes_listener: Sender<Bytes>) -> NetworkNode {
         let dev_config = DevConfig { allow_multiple_lan_nodes: true, ..Default::default() };
         let config = Config { dev: Some(dev_config) };
         let node = unwrap!(Node::builder().first(first).config(config).create());
 
-        let (recv_tx, recv_rx) = mpsc::channel();
-        let (send_tx, send_rx) = mpsc::channel();
+        let (bytes_to_send_tx, bytes_to_send_rx) = mpsc::channel();
 
         NetworkNode {
             node: node,
@@ -42,33 +41,34 @@ impl NetworkNode {
             request_cache: LruCache::with_expiry_duration(Duration::from_secs(60 * 10)),
             first: first,
 
-            bytes_received_tx: recv_tx,   
-            bytes_received_rx: recv_rx, //public
+            received_bytes_listener,   
             
-            bytes_to_send_tx: send_tx,  //public
-            bytes_to_send_rx: send_rx 
+            bytes_to_send_tx,  //public
+            bytes_to_send_rx 
         }
     }
 
     pub fn run(&mut self)
     {
-        while let Ok(event) = self.node.next_ev()
+        let mut disconnected = false;
+        while !disconnected
         {
-            if !self.handle_node_event(event)
+            if let Ok(bytes_to_send) = self.bytes_to_send_rx.try_recv()
             {
-                break;  // terminate network loop
+                self.send_a_message(&bytes_to_send.take());
             }
+
+            match self.node.try_next_ev() {
+                Ok(event) => disconnected = !self.handle_node_event(event),
+                Err(error) => if error == TryRecvError::Disconnected { disconnected = true }
+            }
+            thread::sleep(Duration::from_millis(400));  //TODO make select! macro to wait for recv any of two threads
         }
     }
 
     pub fn get_bytes_to_send_sender(&self) -> Sender<Bytes>
     {
         self.bytes_to_send_tx.clone()
-    }
-
-    pub fn get_bytes_received_receiver(&self) -> &Receiver<Bytes>
-    {
-        &self.bytes_received_rx
     }
 
     /// Runs the event loop, handling events raised by the Routing library.
@@ -329,7 +329,23 @@ impl NetworkNode {
 
     fn handle_message(&mut self, data: &Vec<u8>)
     {
-        self.bytes_received_tx.send(data.clone().into());
+        self.received_bytes_listener.send(data.clone().into());
+    }
+
+    fn send_a_message(&mut self, message: &Vec<u8>)
+    {
+        let node_name = *unwrap!(self.node.id()).name();
+        let src = Authority::ManagedNode(node_name);
+        let dst = Authority::NodeManager(node_name);
+
+        unwrap!(self.node.send_put_idata_request(
+            src,
+            dst, 
+            ImmutableData::new(message.clone()),
+            MessageId::new()
+        ));
+
+        info!("Send a message from {:?} to its node manager saying {:?}", node_name, message);
     }
 }
 

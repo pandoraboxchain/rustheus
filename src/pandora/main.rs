@@ -24,13 +24,13 @@ mod network; use network::NetworkNode;
 mod executor; use executor::Executor;
 mod input_listener; use input_listener::InputListener;
 mod message_wrapper; use message_wrapper::MessageWrapper;
-
+mod message_handler; use message_handler::MessageHandler;
 mod executor_tasks;
-mod service;
+mod service; use service::Service;
 
 fn main() {
     env_logger::init().unwrap();
-    let matches = App::new("simple_node")
+    let matches = App::new("pandora")
         .about(
             "The crust peer will run, using any config file it can find to \
                 try and bootstrap off any provided peers.",
@@ -48,18 +48,22 @@ fn main() {
 
     let is_first_node = matches.is_present("first");
     
-    let network = NetworkNode::new(is_first_node);
     let mempool = Mempool::new();
+    let mut message_handler = MessageHandler::new(mempool.get_sender());    
+
+    let mut network = NetworkNode::new(is_first_node, message_handler.get_sender());
     let network_sender = network.get_bytes_to_send_sender();
+
     let message_wrapper = MessageWrapper::new(network_sender);
 
     let mut executor = Executor::new(mempool, message_wrapper);
     let input_listener = InputListener::new(is_first_node, executor.get_sender());   
     
-    thread::spawn(move || {
-        executor.run();
-    });
+    thread::spawn(move || executor.run() );
+    thread::spawn(move || message_handler.run() );
+    //thread::spawn(move || network.run()) ;
 
+    network.run();
 
     let pandora = PandoraNode
         {
@@ -68,8 +72,7 @@ fn main() {
             input_listener
         };
 
-    let mut network = pandora.network;
-    network.run();
+    //let mut network = pandora.network;
 }
 
 // fn handle_transaction(mempool: &mut Mempool, data: &Vec<u8>)
