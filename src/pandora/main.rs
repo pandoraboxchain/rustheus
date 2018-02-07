@@ -1,3 +1,5 @@
+#![deny(unused_must_use)]   //this deny is needed primarily not to forget to unwrap Sender::send()
+
 extern crate routing;
 extern crate clap;
 extern crate lru_time_cache;
@@ -8,7 +10,9 @@ extern crate bitcrypto as crypto;
 extern crate chain;
 extern crate serialization as ser;
 extern crate message;
-extern crate params; 
+extern crate params;
+extern crate primitives;
+extern crate db;
 
 #[macro_use] extern crate log;
 #[macro_use] extern crate unwrap;
@@ -18,6 +22,8 @@ use clap::*;
 
 use ser::{deserialize, serialize, serialize_with_flags};
 use std::thread;
+use db::{BlockChainDatabase};
+use db::kv::{MemoryDatabase};
 
 mod mempool; use mempool::Mempool;
 mod network; use network::NetworkNode;
@@ -27,6 +33,7 @@ mod message_wrapper; use message_wrapper::MessageWrapper;
 mod message_handler; use message_handler::MessageHandler;
 mod executor_tasks;
 mod service; use service::Service;
+
 
 fn main() {
     env_logger::init().unwrap();
@@ -49,7 +56,8 @@ fn main() {
     let is_first_node = matches.is_present("first");
     
     let mempool = Mempool::new();
-    let mut message_handler = MessageHandler::new(mempool.get_sender());    
+    let store = BlockChainDatabase::open(MemoryDatabase::default());
+    let mut message_handler = MessageHandler::new(mempool.get_sender(), store);    
 
     let mut network = NetworkNode::new(is_first_node, message_handler.get_sender());
     let network_sender = network.get_bytes_to_send_sender();
@@ -57,7 +65,8 @@ fn main() {
     let message_wrapper = MessageWrapper::new(network_sender);
 
     let mut executor = Executor::new(mempool, message_wrapper);
-    let input_listener = InputListener::new(is_first_node, executor.get_sender());   
+    let input_listener = InputListener::new(is_first_node, executor.get_sender());
+
     
     thread::spawn(move || executor.run() );
     thread::spawn(move || message_handler.run() );

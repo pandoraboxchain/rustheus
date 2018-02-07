@@ -58,7 +58,7 @@ impl Executor
     {
         let _value = value_string.parse::<u64>().unwrap();
         let transaction = Transaction {
-            version: 1,
+            version: 0,
             inputs: vec![TransactionInput {
                 previous_output: OutPoint {
                     hash: "fff7f7881a8099afa6940d42d1e7f6362bec38171ea3edf433541db4e4ad969f".into(),
@@ -86,13 +86,11 @@ impl Executor
                 value: 0x000000000d519390,
                 script_pubkey: "76a9143bde42dbee7e4dbe6a21b2d50ce2f0167faa815988ac".into(),
             }],
-            lock_time: 0x00000011,
+            lock_time: 0x0000_0011,
         };
-
 
         let tx = Tx { transaction: transaction.clone() };
         self.message_wrapper.wrap(&tx);
-        //self.payload_sender.send(Box::new(payload));
         
         self.mempool.transactions.push(transaction);
     }

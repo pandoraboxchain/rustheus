@@ -20,6 +20,8 @@ bitcrypto = { path = "src/crypto" }
 serialization = { path = "src/serialization" }
 message = { path = "src/message" }
 params = { path = "src/params" }
+primitives = { path = "src/primitives" }
+db = { path = "src/db" }
 
 [[bin]]
 path = "src/pandora/main.rs"

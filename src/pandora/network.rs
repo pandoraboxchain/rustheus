@@ -329,7 +329,7 @@ impl NetworkNode {
 
     fn handle_message(&mut self, data: &Vec<u8>)
     {
-        self.received_bytes_listener.send(data.clone().into());
+        self.received_bytes_listener.send(data.clone().into()).unwrap();
     }
 
     fn send_a_message(&mut self, message: &Vec<u8>)
