@@ -4,8 +4,9 @@ use std::sync::mpsc::{self, Sender, Receiver};
 use Mempool;
 use std::time::{SystemTime, UNIX_EPOCH};
 use executor_tasks::Task;
-use message::types::Tx;
+use message::types::{Tx, Block as BlockMessage};
 use message_wrapper::MessageWrapper;
+use db::SharedStore;
 
 pub struct Executor
 {
@@ -14,19 +15,21 @@ pub struct Executor
     //mempool_sender: Sender<Transaction>
     message_wrapper: MessageWrapper,
     mempool: Mempool,
+    storage: SharedStore
 }
 
 impl Executor
 {
-    pub fn new(mempool: Mempool, message_wrapper: MessageWrapper) -> Self
+    pub fn new(mempool: Mempool, storage: SharedStore, message_wrapper: MessageWrapper) -> Self
     {
         let (task_sender, task_receiver) = mpsc::channel();
         let executor = Executor
             {
                 task_sender,
                 task_receiver,
+                message_wrapper,
                 mempool,
-                message_wrapper
+                storage,
             };
 
         executor
@@ -46,7 +49,7 @@ impl Executor
                 info!("task received, it is {:?}", task);
                 match task
                 {
-                    Task::SignBlock() => Executor::sign_block(&self.mempool),
+                    Task::SignBlock() => self.sign_block(),
                     Task::CreateExampleTransaction(value) => self.create_example_transaction(&value)
                 }
             }
@@ -94,29 +97,25 @@ impl Executor
         self.mempool.transactions.push(transaction);
     }
 
-    fn sign_block(mempool: &Mempool)
+    fn sign_block(&mut self)
     {
         let current_time = SystemTime::now();
         let time_since_the_epoch = current_time.duration_since(UNIX_EPOCH).expect("Time went backwards");
-        let dummy_header = BlockHeader {
+
+        let header = BlockHeader {
             version: 1,
-            previous_header_hash: DHash256::new().finish(),
+            previous_header_hash: self.storage.best_block().hash,
             merkle_root_hash: DHash256::new().finish(),
             time: time_since_the_epoch.as_secs() as u32,
             bits: 5.into(),
             nonce: 6,
         };
-        let block = Block::new(dummy_header, mempool.transactions.clone());
+        let mut block = Block::new(header, self.mempool.transactions.clone());
         
-        let real_header = BlockHeader {
-            version: 1,
-            previous_header_hash: DHash256::new().finish(),
-            merkle_root_hash: block.witness_merkle_root(),
-            time: time_since_the_epoch.as_secs() as u32,
-            bits: 6.into(),
-            nonce: 5,
-        };
-        println!("signed block header: {:?}", real_header);
-        let _real_block = Block::new(real_header, mempool.transactions.clone());
+        //recalculate merkle root
+        block.block_header.merkle_root_hash = block.witness_merkle_root();
+
+        let block_message = BlockMessage { block };
+        self.message_wrapper.wrap(&block_message);
     }
 }

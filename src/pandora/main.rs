@@ -32,6 +32,7 @@ mod message_wrapper; use message_wrapper::MessageWrapper;
 mod message_handler; use message_handler::MessageHandler;
 mod executor_tasks;
 mod service; use service::Service;
+mod db_util;
 
 
 fn main() {
@@ -45,28 +46,33 @@ fn main() {
             Arg::with_name("first")
                 .short("f")
                 .long("first")
-                .help(
-                    "Keep sending random data at a maximum speed of RATE bytes/second to the \
-                   first connected peer.",
-                )
+                .help("Indicates if this node be bootstraping node")
+        )
+        .arg(
+            Arg::with_name("number")
+                .short("n")
+                .long("number")
+                .help("Number for node unique database")
+                .takes_value(true)
         )
         .get_matches();
 
     let is_first_node = matches.is_present("first");
     
-    let mempool = Mempool::new();
-    let path = PathBuf::from(".");
+    let db_path_string = "./db".to_owned() + matches.value_of("number").unwrap_or("") + "/";
+    let db_path = PathBuf::from(db_path_string);
     let default_db_cache = 512;
-    let store = Arc::new(db::BlockChainDatabase::open_at_path(path, default_db_cache).expect("Failed to open database"));
-    // let store = db_utils::open_db(Some(".".to_owned()), default_db_cache)
-    let mut message_handler = MessageHandler::new(mempool.get_sender(), store);    
+    let storage = Arc::new(db::BlockChainDatabase::open_at_path(db_path, default_db_cache).expect("Failed to open database"));
+
+    let mempool = Mempool::new();
+    let mut message_handler = MessageHandler::new(mempool.get_sender(), storage.clone());    
 
     let mut network = NetworkNode::new(is_first_node, message_handler.get_sender());
     let network_sender = network.get_bytes_to_send_sender();
 
     let message_wrapper = MessageWrapper::new(network_sender);
 
-    let mut executor = Executor::new(mempool, message_wrapper);
+    let mut executor = Executor::new(mempool, storage.clone(), message_wrapper);
     let input_listener = InputListener::new(is_first_node, executor.get_sender());
 
     thread::spawn(move || executor.run() );
