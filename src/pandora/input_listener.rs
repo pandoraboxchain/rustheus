@@ -48,11 +48,11 @@ impl InputListener
             executor.send(task)?;
             Ok(())
         });
-        shell.new_command("addresscreate", "Create address and show private and public keys", 0, |_, senders, _|
+        shell.new_command("walletcreate", "Create address and show private and public keys", 0, |_, senders, _|
         {
             let ref wallet_manager = senders.1;
             let task = WalletTask::CreateWallet();
-            info!("Creating address...");            
+            info!("Creating wallet...");            
             wallet_manager.send(task)?;
             Ok(())
         });

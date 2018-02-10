@@ -27,7 +27,11 @@ impl WalletManager
         let generator = Random::new(Network::Mainnet);
         match generator.generate()
         {
-            Ok(keypair) => info!("got keypair {}", keypair),
+            Ok(keypair) =>
+            {
+                info!("got keypair {}", keypair);
+                info!("address is {}", keypair.address());
+            } 
             Err(error) => error!("error generating keypair {:?}", error)
         }
     }
