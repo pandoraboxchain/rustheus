@@ -23,7 +23,7 @@ impl Mempool
         self.sender.clone()
     }
 
-    fn run(&mut self)
+    pub fn run(&mut self)
     {
         loop
         {

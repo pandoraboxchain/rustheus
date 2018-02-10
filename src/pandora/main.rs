@@ -20,10 +20,9 @@ extern crate db;
 
 use clap::*;
 
-use ser::{deserialize, serialize, serialize_with_flags};
 use std::thread;
-use db::{BlockChainDatabase};
-use db::kv::{MemoryDatabase};
+use std::path::PathBuf;
+use std::sync::Arc;
 
 mod mempool; use mempool::Mempool;
 mod network; use network::NetworkNode;
@@ -56,7 +55,10 @@ fn main() {
     let is_first_node = matches.is_present("first");
     
     let mempool = Mempool::new();
-    let store = BlockChainDatabase::open(MemoryDatabase::default());
+    let path = PathBuf::from(".");
+    let default_db_cache = 512;
+    let store = Arc::new(db::BlockChainDatabase::open_at_path(path, default_db_cache).expect("Failed to open database"));
+    // let store = db_utils::open_db(Some(".".to_owned()), default_db_cache)
     let mut message_handler = MessageHandler::new(mempool.get_sender(), store);    
 
     let mut network = NetworkNode::new(is_first_node, message_handler.get_sender());
@@ -67,14 +69,12 @@ fn main() {
     let mut executor = Executor::new(mempool, message_wrapper);
     let input_listener = InputListener::new(is_first_node, executor.get_sender());
 
-    
     thread::spawn(move || executor.run() );
     thread::spawn(move || message_handler.run() );
-    //thread::spawn(move || network.run()) ;
 
     network.run();
 
-    let pandora = PandoraNode
+    let _pandora = PandoraNode
         {
             network,
             //executor,
@@ -83,19 +83,6 @@ fn main() {
 
     //let mut network = pandora.network;
 }
-
-// fn handle_transaction(mempool: &mut Mempool, data: &Vec<u8>)
-// {
-//     let deserialized = deserialize::<_, Transaction>(&data[..]);
-//     match deserialized
-//     {
-//         Ok(transaction) => {
-//             println!(" received transaction {:?}", transaction);
-//             mempool.push(transaction);
-//         }
-//         Err(_) => {}
-//     }
-// }
 
 pub struct PandoraNode
 {

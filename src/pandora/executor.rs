@@ -2,7 +2,6 @@ use chain::{BlockHeader, Block, Transaction, TransactionInput, TransactionOutput
 use crypto::DHash256;
 use std::sync::mpsc::{self, Sender, Receiver};
 use Mempool;
-use ser::{deserialize, serialize, serialize_with_flags};
 use std::time::{SystemTime, UNIX_EPOCH};
 use executor_tasks::Task;
 use message::types::Tx;
@@ -118,6 +117,6 @@ impl Executor
             nonce: 5,
         };
         println!("signed block header: {:?}", real_header);
-        let real_block = Block::new(real_header, mempool.transactions.clone());
+        let _real_block = Block::new(real_header, mempool.transactions.clone());
     }
 }

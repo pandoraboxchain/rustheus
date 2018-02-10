@@ -1,5 +1,5 @@
 use message::Payload;
-use std::sync::mpsc::{self, Sender, Receiver};
+use std::sync::mpsc::{Sender};
 use chain::bytes::Bytes;
 use params::info::NETWORK_INFO;
 use ser::SERIALIZE_TRANSACTION_WITNESS;

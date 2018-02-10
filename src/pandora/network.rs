@@ -6,7 +6,6 @@ use routing::{Authority, ClientError, Event, EventStream, ImmutableData,
 use std::collections::HashMap;
 use std::time::Duration;
 use std::sync::mpsc::{self, Sender, Receiver, TryRecvError};
-use chain::{BlockHeader, Block, Transaction, TransactionInput, TransactionOutput, OutPoint};
 use chain::bytes::Bytes;
 use std::thread;
 
@@ -17,7 +16,6 @@ pub struct NetworkNode {
     idata_store: HashMap<XorName, ImmutableData>,
     client_accounts: HashMap<XorName, u64>,
     request_cache: LruCache<MessageId, (Authority<XorName>, Authority<XorName>)>,
-    first: bool,
 
     received_bytes_listener: Sender<Bytes>,
     
@@ -39,7 +37,6 @@ impl NetworkNode {
             idata_store: HashMap::new(),
             client_accounts: HashMap::new(),
             request_cache: LruCache::with_expiry_duration(Duration::from_secs(60 * 10)),
-            first: first,
 
             received_bytes_listener,   
             

@@ -2,14 +2,12 @@ use chain::Transaction;
 use std::sync::mpsc::{self, Sender, Receiver};
 use chain::bytes::Bytes;
 use message::MessageHeader;
-use message::{Command, Error, Payload, Services, types, deserialize_payload};
+use message::{Error, Payload, types, deserialize_payload};
 
 use params::info::NETWORK_INFO;
 use service::Service;
 use crypto::checksum;
-use primitives::hash::H32;
-use db::{BlockChainDatabase};
-use db::kv::{MemoryDatabase};
+use db::SharedStore;
 
 pub struct MessageHandler
 {
@@ -18,12 +16,12 @@ pub struct MessageHandler
     network_data_sender: Sender<Bytes>,
     network_data_receiver: Receiver<Bytes>,
 
-    store: BlockChainDatabase<MemoryDatabase>
+    store: SharedStore
 }
 
 impl MessageHandler
 {
-    pub fn new(mempool_channel: Sender<Transaction>, store: BlockChainDatabase<MemoryDatabase>) -> Self
+    pub fn new(mempool_channel: Sender<Transaction>, store: SharedStore) -> Self
     {
         let (network_data_sender, network_data_receiver) = mpsc::channel();
         MessageHandler {
