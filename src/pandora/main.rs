@@ -13,6 +13,7 @@ extern crate message;
 extern crate params;
 extern crate primitives;
 extern crate db;
+extern crate keys;
 
 #[macro_use] extern crate log;
 #[macro_use] extern crate unwrap;
@@ -21,8 +22,6 @@ extern crate db;
 use clap::*;
 
 use std::thread;
-use std::path::PathBuf;
-use std::sync::Arc;
 use params::NetworkParams;
 
 mod mempool; use mempool::Mempool;
@@ -34,6 +33,7 @@ mod message_handler; use message_handler::MessageHandler;
 mod executor_tasks;
 mod service; use service::Service;
 mod db_utils;
+mod wallet_manager; mod wallet_manager_tasks; use wallet_manager::WalletManager;
 
 
 fn main() {
@@ -74,9 +74,11 @@ fn main() {
     let message_wrapper = MessageWrapper::new(network_sender);
 
     let mut executor = Executor::new(mempool, storage.clone(), message_wrapper);
-    let input_listener = InputListener::new(is_first_node, executor.get_sender());
+    let mut wallet_manager = WalletManager::new();
+    let input_listener = InputListener::new(is_first_node, executor.get_sender(), wallet_manager.get_sender());
 
     thread::spawn(move || executor.run() );
+    thread::spawn(move || wallet_manager.run() );    
     thread::spawn(move || message_handler.run() );
 
     network.run();

@@ -22,6 +22,7 @@ message = { path = "src/message" }
 params = { path = "src/params" }
 primitives = { path = "src/primitives" }
 db = { path = "src/db" }
+keys = { path = "src/keys" }
 
 [[bin]]
 path = "src/pandora/main.rs"

@@ -23,16 +23,14 @@ impl Executor
     pub fn new(mempool: Mempool, storage: SharedStore, message_wrapper: MessageWrapper) -> Self
     {
         let (task_sender, task_receiver) = mpsc::channel();
-        let executor = Executor
-            {
-                task_sender,
-                task_receiver,
-                message_wrapper,
-                mempool,
-                storage,
-            };
-
-        executor
+        Executor
+        {
+            task_sender,
+            task_receiver,
+            message_wrapper,
+            mempool,
+            storage,
+        }
     }
 
     pub fn get_sender(&self) -> Sender<Task>
@@ -105,7 +103,7 @@ impl Executor
         let header = BlockHeader {
             version: 1,
             previous_header_hash: self.storage.best_block().hash,
-            merkle_root_hash: DHash256::new().finish(),
+            merkle_root_hash: DHash256::default().finish(),
             time: time_since_the_epoch.as_secs() as u32,
             bits: 5.into(),
             nonce: 6,
