@@ -23,6 +23,7 @@ use clap::*;
 use std::thread;
 use std::path::PathBuf;
 use std::sync::Arc;
+use params::NetworkParams;
 
 mod mempool; use mempool::Mempool;
 mod network; use network::NetworkNode;
@@ -32,7 +33,7 @@ mod message_wrapper; use message_wrapper::MessageWrapper;
 mod message_handler; use message_handler::MessageHandler;
 mod executor_tasks;
 mod service; use service::Service;
-mod db_util;
+mod db_utils;
 
 
 fn main() {
@@ -60,9 +61,9 @@ fn main() {
     let is_first_node = matches.is_present("first");
     
     let db_path_string = "./db".to_owned() + matches.value_of("number").unwrap_or("") + "/";
-    let db_path = PathBuf::from(db_path_string);
     let default_db_cache = 512;
-    let storage = Arc::new(db::BlockChainDatabase::open_at_path(db_path, default_db_cache).expect("Failed to open database"));
+    let storage = db_utils::open_db(db_path_string, default_db_cache);
+    db_utils::init_db(storage.clone(), NetworkParams::Mainnet).unwrap(); //init db with genesis block
 
     let mempool = Mempool::new();
     let mut message_handler = MessageHandler::new(mempool.get_sender(), storage.clone());    

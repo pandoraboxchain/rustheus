@@ -12,6 +12,10 @@ fn concat<T>(a: T, b: T) -> H512 where T: AsRef<H256> {
 /// Calculates the root of the merkle tree
 /// https://en.bitcoin.it/wiki/Protocol_documentation#Merkle_Trees
 pub fn merkle_root<T>(hashes: &[T]) -> H256 where T: AsRef<H256> {
+	if hashes.is_empty() {
+		return H256::default();
+	}
+	
 	if hashes.len() == 1 {
 		return hashes[0].as_ref().clone();
 	}
@@ -41,6 +45,13 @@ pub fn merkle_node_hash<T>(left: T, right: T) -> H256 where T: AsRef<H256> {
 mod tests {
 	use hash::H256;
 	use super::merkle_root;
+
+	#[test]
+	fn test_merkle_root_empty() {
+		let result = merkle_root(&[]);
+		assert_eq!(result, H256::default());
+	}
+	
 
 	// block 80_000
 	// https://blockchain.info/block/000000000043a8c0fd1d6f726790caa2a406010d19efd2780db27bdbbd93baf6
