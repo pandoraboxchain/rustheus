@@ -23,6 +23,7 @@ use clap::*;
 
 use std::thread;
 use params::NetworkParams;
+use std::sync::{Arc, RwLock};
 
 mod mempool; use mempool::Mempool;
 mod network; use network::NetworkNode;
@@ -65,16 +66,13 @@ fn main() {
     let storage = db_utils::open_db(db_path_string, default_db_cache);
     db_utils::init_db(storage.clone(), NetworkParams::Mainnet).unwrap(); //init db with genesis block
 
-    let mempool = Mempool::new();
-    let mut message_handler = MessageHandler::new(mempool.get_sender(), storage.clone());    
+    let mempool_ref = Arc::new(RwLock::new(Mempool::new()));
+    let mut message_handler = MessageHandler::new(mempool_ref.clone(), storage.clone());    
 
     let mut network = NetworkNode::new(is_first_node, message_handler.get_sender());
-    let network_sender = network.get_bytes_to_send_sender();
 
-    let message_wrapper = MessageWrapper::new(network_sender);
-
-    let mut executor = Executor::new(mempool, storage.clone(), message_wrapper);
-    let mut wallet_manager = WalletManager::new();
+    let mut wallet_manager = WalletManager::new(mempool_ref.clone(), MessageWrapper::new(network.get_bytes_to_send_sender()));
+    let mut executor = Executor::new(mempool_ref.clone(), storage.clone(), MessageWrapper::new(network.get_bytes_to_send_sender()));
     let input_listener = InputListener::new(is_first_node, executor.get_sender(), wallet_manager.get_sender());
 
     thread::spawn(move || executor.run() );

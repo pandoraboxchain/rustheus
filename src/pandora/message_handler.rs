@@ -1,4 +1,3 @@
-use chain::Transaction;
 use std::sync::mpsc::{self, Sender, Receiver};
 use chain::bytes::Bytes;
 use message::MessageHeader;
@@ -8,10 +7,11 @@ use params::info::NETWORK_INFO;
 use service::Service;
 use crypto::checksum;
 use db::SharedStore;
+use mempool::MempoolRef;
 
 pub struct MessageHandler
 {
-    mempool_channel: Sender<Transaction>,
+    mempool: MempoolRef,
     
     network_data_sender: Sender<Bytes>,
     network_data_receiver: Receiver<Bytes>,
@@ -21,11 +21,11 @@ pub struct MessageHandler
 
 impl MessageHandler
 {
-    pub fn new(mempool_channel: Sender<Transaction>, store: SharedStore) -> Self
+    pub fn new(mempool: MempoolRef, store: SharedStore) -> Self
     {
         let (network_data_sender, network_data_receiver) = mpsc::channel();
         MessageHandler {
-                    mempool_channel,
+                    mempool,
                     network_data_sender,
                     network_data_receiver,
                     store
@@ -35,7 +35,8 @@ impl MessageHandler
     fn on_transaction(&self, message: types::Tx)
     {
         info!("received transaction message {:?}", message);
-		self.mempool_channel.send(message.transaction).unwrap();
+		let mut mempool = self.mempool.write().unwrap();
+        mempool.transactions.push(message.transaction);
 	}
     
     fn on_block(&self, message: types::Block)

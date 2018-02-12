@@ -1,7 +1,7 @@
 use chain::{BlockHeader, Block, Transaction, TransactionInput, TransactionOutput, OutPoint};
 use crypto::DHash256;
 use std::sync::mpsc::{self, Sender, Receiver};
-use Mempool;
+use mempool::{MempoolRef};
 use std::time::{SystemTime, UNIX_EPOCH};
 use executor_tasks::Task;
 use message::types::{Tx, Block as BlockMessage};
@@ -14,13 +14,13 @@ pub struct Executor
     task_sender: Sender<Task>,
     //mempool_sender: Sender<Transaction>
     message_wrapper: MessageWrapper,
-    mempool: Mempool,
+    mempool: MempoolRef,
     storage: SharedStore
 }
 
 impl Executor
 {
-    pub fn new(mempool: Mempool, storage: SharedStore, message_wrapper: MessageWrapper) -> Self
+    pub fn new(mempool: MempoolRef, storage: SharedStore, message_wrapper: MessageWrapper) -> Self
     {
         let (task_sender, task_receiver) = mpsc::channel();
         Executor
@@ -92,7 +92,8 @@ impl Executor
         let tx = Tx { transaction: transaction.clone() };
         self.message_wrapper.wrap(&tx);
         
-        self.mempool.transactions.push(transaction);
+        let mut mempool = self.mempool.write().unwrap();
+        mempool.transactions.push(transaction);
     }
 
     fn sign_block(&mut self)
@@ -108,7 +109,8 @@ impl Executor
             bits: 5.into(),
             nonce: 6,
         };
-        let mut block = Block::new(header, self.mempool.transactions.clone());
+        let mempool = self.mempool.write().unwrap();
+        let mut block = Block::new(header, mempool.transactions.clone());
         
         //recalculate merkle root
         block.block_header.merkle_root_hash = block.witness_merkle_root();
