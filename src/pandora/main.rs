@@ -35,6 +35,7 @@ mod executor_tasks;
 mod service; use service::Service;
 mod db_utils;
 mod wallet_manager; mod wallet_manager_tasks; use wallet_manager::WalletManager;
+mod wallet; 
 
 
 fn main() {
@@ -71,7 +72,7 @@ fn main() {
 
     let mut network = NetworkNode::new(is_first_node, message_handler.get_sender());
 
-    let mut wallet_manager = WalletManager::new(mempool_ref.clone(), MessageWrapper::new(network.get_bytes_to_send_sender()));
+    let mut wallet_manager = WalletManager::new(mempool_ref.clone(), storage.clone(), MessageWrapper::new(network.get_bytes_to_send_sender()));
     let mut executor = Executor::new(mempool_ref.clone(), storage.clone(), MessageWrapper::new(network.get_bytes_to_send_sender()));
     let input_listener = InputListener::new(is_first_node, executor.get_sender(), wallet_manager.get_sender());
 

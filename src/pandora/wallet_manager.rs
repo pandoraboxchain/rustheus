@@ -1,6 +1,6 @@
-use keys::generator::{Random, Generator};
-use keys::network::Network;
-use keys::Address;
+use keys::{Address, Private};
+use keys::DisplayLayout;
+use std::str::FromStr;
 use wallet_manager_tasks::Task;
 use std::sync::mpsc::{self, Sender, Receiver};
 use service::Service;
@@ -8,7 +8,8 @@ use chain::Transaction;
 use message_wrapper::MessageWrapper;
 use message::types::Tx;
 use mempool::MempoolRef;
-
+use wallet::Wallet;
+use db::SharedStore;
 //temp
 use chain::{TransactionInput, TransactionOutput, OutPoint};
 
@@ -18,39 +19,66 @@ pub struct WalletManager
     receiver: Receiver<Task>,
     sender: Sender<Task>,
     mempool: MempoolRef,
-    wrapper: MessageWrapper
+    wrapper: MessageWrapper,
+    wallets: Vec<Wallet>,
+    storage: SharedStore
 }
 
 impl WalletManager
 {
-    pub fn new(mempool: MempoolRef, wrapper: MessageWrapper) -> Self
+    pub fn new(mempool: MempoolRef, storage: SharedStore, wrapper: MessageWrapper) -> Self
     {
         let (sender, receiver) = mpsc::channel();
+        let wallets = vec![];
         WalletManager
         {
             sender,
             receiver,
             mempool,
-            wrapper
+            wrapper,
+            wallets,
+            storage
         }
     }
 
-    fn create_wallet(&self)
+    fn create_wallet(&mut self)
     {
-        let generator = Random::new(Network::Mainnet);
-        match generator.generate()
+        let wallet = Wallet::new().unwrap();
+        self.wallets.push(wallet);
+    }
+
+    fn load_from_key(&mut self, private: Private)
+    {
+        match Wallet::from_private(private)
         {
-            Ok(keypair) =>
-            {
-                info!("got keypair {}", keypair);
-                info!("address is {}", keypair.address());
-            } 
-            Err(error) => error!("error generating keypair {:?}", error)
+            Ok(wallet) => self.wallets.push(wallet),
+            Err(err) => error!("failed to create wallet from private: {}", err)
         }
     }
 
-    fn send_cash(&self, to: Address, amount: u32)
+    fn calculate_balance(&self)
     {
+        if self.wallets.is_empty()
+        {
+            error!("No wallet was created or loaded. Use `walletcreate` or `walletfromkey` to create one.");
+            return;
+        }  
+        let _wallet = &self.wallets[0];
+
+        //TODO implement UTXO set
+    }
+
+    fn send_cash(&self, to: Address, amount: u64)
+    {
+        if self.wallets.is_empty()
+        {
+            error!("No wallet was created or loaded. Use `walletcreate` or `walletfromkey` to create one.");
+            return;
+        }  
+        let wallet = &self.wallets[0];
+
+        let address_string = to.to_string();
+
         let transaction = Transaction {
             version: 0,
             inputs: vec![TransactionInput {
@@ -61,26 +89,12 @@ impl WalletManager
                 script_sig: "4830450221008b9d1dc26ba6a9cb62127b02742fa9d754cd3bebf337f7a55d114c8e5cdd30be022040529b194ba3f9281a99f2b1c0a19c0489bc22ede944ccf4ecbab4cc618ef3ed01".into(),
                 sequence: 0xffffffee,
                 script_witness: vec![],
-            }, TransactionInput {
-                previous_output: OutPoint {
-                    hash: "ef51e1b804cc89d182d279655c3aa89e815b1b309fe287d9b2b55d57b90ec68a".into(),
-                    index: 1,
-                },
-                script_sig: "".into(),
-                sequence: 0xffffffff,
-                script_witness: vec![
-                    "304402203609e17b84f6a7d30c80bfa610b5b4542f32a8a0d5447a12fb1366d7f01cc44a0220573a954c4518331561406f90300e8f3358f51928d43c212a8caed02de67eebee01".into(),
-                    "025476c2e83188368da1ff3e292e7acafcdb3566bb0ad253f62fc70f07aeee6357".into(),
-                ],
             }],
             outputs: vec![TransactionOutput {
-                value: 0x0000000006b22c20,
-                script_pubkey: "76a9148280b37df378db99f66f85c95a783a76ac7a6d5988ac".into(),
-            }, TransactionOutput {
-                value: 0x000000000d519390,
-                script_pubkey: "76a9143bde42dbee7e4dbe6a21b2d50ce2f0167faa815988ac".into(),
+                value: amount,
+                script_pubkey: address_string.as_bytes().into()
             }],
-            lock_time: 0x0000_0011,
+            lock_time: 0,
         };
 
         let tx = Tx { transaction: transaction.clone() };
@@ -91,7 +105,7 @@ impl WalletManager
     }
 }
 
-impl<'a> Service for WalletManager
+impl Service for WalletManager
 {
     type Item = Task;
     fn get_sender(&self) -> Sender<Self::Item>
@@ -105,10 +119,11 @@ impl<'a> Service for WalletManager
         {
             if let Ok(task) = self.receiver.recv()
             {
-                info!("wallet task received, it is {:?}", task);
                 match task
                 {
                     Task::CreateWallet() => self.create_wallet(),
+                    Task::LoadWallet(private) => self.load_from_key(private), //TODO simpilify this
+                    Task::CalculateBalance() => self.calculate_balance(),
                     Task::SendCash(to, amount) => self.send_cash(to, amount)
                 }
             }

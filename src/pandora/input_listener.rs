@@ -3,7 +3,9 @@ use std::net::TcpListener;
 use std::thread;
 use std::sync::mpsc::Sender;
 use std::io::Write;
+use std::str::FromStr;
 use executor_tasks::Task;
+use keys::{Private};
 use wallet_manager_tasks::Task as WalletTask;
 
 pub struct InputListener
@@ -53,6 +55,31 @@ impl InputListener
             let ref wallet_manager = senders.1;
             let task = WalletTask::CreateWallet();
             info!("Creating wallet...");            
+            wallet_manager.send(task)?;
+            Ok(())
+        });
+        shell.new_command("walletload", "Load wallet from provided private key", 1, |_, senders, args|
+        {
+            let ref wallet_manager = senders.1;
+            match Private::from_str(args[0])
+            {
+                Ok(private) => {
+                    let task = WalletTask::LoadWallet(private);
+                    info!("Loading wallet...");            
+                    wallet_manager.send(task)?;
+                    Ok(())
+                },
+                //Err(err) => Err(ExecError::Other(Box::new(err)))
+                Err(err) => {
+                    error!("Can't parse private key: {}", err);
+                    Ok(())  //TODO find a way to return proper error
+                }
+            }
+        });
+        shell.new_command("walletbalance", "Create address and show private and public keys", 0, |_, senders, _|
+        {
+            let ref wallet_manager = senders.1;
+            let task = WalletTask::CalculateBalance();           
             wallet_manager.send(task)?;
             Ok(())
         });
