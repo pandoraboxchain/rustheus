@@ -483,32 +483,44 @@ impl<T> TransactionMetaProvider for BlockChainDatabase<T> where T: KeyValueDatab
 }
 
 impl<T> TransactionUtxoProvider for BlockChainDatabase<T> where T: KeyValueDatabase {
-	fn transaction_with_output_address(&self, address: &H160) -> Vec<TransactionOutput> {
-		let best_block = self.best_block();
-		let block_ref = BlockRef::Hash(best_block.hash);
-		let transaction_hashes = self.block_transaction_hashes(block_ref);
+	fn transaction_utxo_for_block(&self, block_height: u32, address: &H160) -> Vec<OutPoint> {
+		let block = BlockRef::Number(block_height);
+		let transaction_hashes = self.block_transaction_hashes(block);
 		let address_bytes = address.clone().take();
-		let mut outputs: Vec<TransactionOutput> = vec![];
+		let mut outputs: Vec<OutPoint> = vec![];
 		for hash in transaction_hashes.iter()	//TODO maybe rewrite it in iterator style
 		{
 			let meta = self.transaction_meta(&hash).unwrap();
 			if !meta.is_fully_spent()
 			{
 				let transaction = self.transaction(&hash).unwrap();
-				for (output_index, is_spent) in meta.bits.iter().enumerate()
+				for (index, is_spent) in meta.bits.iter().skip(1).enumerate() //skip coinbase state bit
 				{
 					if !is_spent
 					{
-						let output = &transaction.outputs[output_index - 1];	//because first one is coinbase
+						let output = &transaction.outputs[index];	
 						if output.script_pubkey.as_ref() == address_bytes
 						{
-							outputs.push(output.clone());
+							outputs.push( OutPoint { hash: hash.clone(), index: index as u32 } );
 						}
 					}
 				}
 			}
 		}
 		outputs
+	}
+	
+	fn transaction_with_output_address(&self, address: &H160) -> Vec<OutPoint> {
+		let best_block = self.best_block();
+		let mut out_points: Vec<OutPoint> = vec![];
+		info!("best block number is {}", best_block.number);		
+		for block_number in (0..best_block.number + 1).rev() //add +1 instead of inclusive range, because they are considered unstable
+		{
+			info!("block number is {}", block_number);
+			let block_outpoints = self.transaction_utxo_for_block(block_number, address);
+			out_points.extend(block_outpoints);
+		}
+		out_points
 	}
 }
 

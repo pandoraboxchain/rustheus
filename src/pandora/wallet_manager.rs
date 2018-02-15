@@ -64,17 +64,20 @@ impl WalletManager
         let wallet = &self.wallets[0];
 
         let address_hash = wallet.keys.address().hash;
-        let outputs = self.storage.transaction_with_output_address(&address_hash);
-        println!("outputs len is {}", outputs.len());
-        for output in outputs.iter()
+        let out_points = self.storage.transaction_with_output_address(&address_hash);
+        println!("out_points len is {}", out_points.len());
+        for out_point in out_points.iter()
         {
-            println!("output is {:?}", output);
+            println!("out_point is {:?}", out_point);
         }
-        let balance = outputs.iter().fold(0, |credit, outputs| credit + outputs.value);
+        let balance = out_points.iter()
+                        .map(|out_point| self.storage.transaction_output(out_point, 0).unwrap())    
+                        .fold(0, |credit, output| credit + output.value);
+
         info!("wallet balance is {}", balance);
     }
 
-    fn send_cash(&self, to: Address, amount: u64)
+    fn send_cash(&self, address: Address, amount: u64)
     {
         if self.wallets.is_empty()
         {
@@ -83,7 +86,7 @@ impl WalletManager
         }  
         let wallet = &self.wallets[0];
 
-        let address_string = to.to_string();
+        let address_byte_array = address.hash.take();
 
         let transaction = Transaction {
             version: 0,
@@ -98,7 +101,7 @@ impl WalletManager
             }],
             outputs: vec![TransactionOutput {
                 value: amount,
-                script_pubkey: address_string.as_bytes().into()
+                script_pubkey: address_byte_array[..].into()
             }],
             lock_time: 0,
         };

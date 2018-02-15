@@ -43,8 +43,14 @@ impl MessageHandler
     {
         let block = message.block;
         let hash = block.hash().clone();
-        self.store.insert(block.into()).unwrap();
-        self.store.canonize(&hash).unwrap();
+        match self.store.insert(block.into())
+        {
+            Ok(_) => match self.store.canonize(&hash) {
+                    Ok(_) => info!("Block inserted and canonized with hash {}", hash),
+                    Err(err) => error!("Cannot canonize received block due to {:?}", err)
+                }
+            Err(err) => error!("Cannot insert received block due to {:?}", err)
+        }
     }
 
     fn on_message(&self, header: MessageHeader, payload: &[u8]) -> Result<(), Error>

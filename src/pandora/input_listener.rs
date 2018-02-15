@@ -5,7 +5,7 @@ use std::sync::mpsc::Sender;
 use std::io::Write;
 use std::str::FromStr;
 use executor_tasks::Task;
-use keys::{Private};
+use keys::{Private, Address};
 use wallet_manager_tasks::Task as WalletTask;
 
 pub struct InputListener
@@ -32,14 +32,6 @@ impl InputListener
         let mut shell = Shell::new(senders);
         shell.new_command_noargs("hello", "Say 'hello' to the world", |io, _| {
             try!(writeln!(io, "Hello World !!!"));
-            Ok(())
-        });
-        shell.new_command("transfer", "Transfer some money", 1, |_, senders, args|
-        {
-            let ref executor = senders.0;
-            let task = Task::CreateExampleTransaction(args[0].parse().unwrap());
-            info!("transfer command was send to executor");
-            try!(executor.send(task));
             Ok(())
         });
         shell.new_command("blocksign", "Sign block with all known transactions", 0, |_, senders, _|
@@ -76,11 +68,31 @@ impl InputListener
                 }
             }
         });
-        shell.new_command("walletbalance", "Create address and show private and public keys", 0, |_, senders, _|
+        shell.new_command("balance", "Show balance of currently loaded wallet", 0, |_, senders, _|
         {
             let ref wallet_manager = senders.1;
             let task = WalletTask::CalculateBalance();           
             wallet_manager.send(task)?;
+            Ok(())
+        });
+        shell.new_command("transfer", "Transfer <address> <amount>", 2, |_, senders, args|
+        {
+            let ref wallet_manager = senders.1;
+            match Address::from_str(args[0])
+            {
+                Ok(address) => {
+                    match args[1].parse::<u64>() {
+                        Ok(amount) => {
+                            let task = WalletTask::SendCash(address, amount);          
+                            wallet_manager.send(task)?;
+                        },
+                        Err(err) => error!("Can't parse amount: {}", err)
+                    }
+                },
+                Err(err) => {
+                    error!("Can't parse address: {}", err);
+                }
+            }
             Ok(())
         });
 

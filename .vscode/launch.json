@@ -6,8 +6,8 @@
             "request": "launch",
             "name": "Debug",
             "program": "${workspaceRoot}/target/debug/pandora",
-            "args": [],
-            "cwd": "${workspaceRoot}",
+            "args": ["-n","3"],     //launch as third client
+            "cwd": "${workspaceRoot}/target/debug/",
             "preLaunchTask": "build",
             "terminal": "integrated",
             "sourceLanguages": ["rust"],
