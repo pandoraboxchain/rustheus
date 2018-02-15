@@ -2,7 +2,7 @@
 //! https://www.anintegratedworld.com/unravelling-the-mysterious-block-chain-magic-number/
 
 use chain::Block;
-use primitives::hash::H256;
+use primitives::hash::{H160, H256};
 use primitives::bigint::U256;
 
 pub const MAGIC_MAINNET: u32 = 0x06A4D09A;
@@ -62,7 +62,7 @@ impl NetworkParams {
 		match *self {
 			NetworkParams::Mainnet | NetworkParams::Other(_) =>
 			{
-				let destination: Bytes = "04c053e75152cd9ee02b0908864aeed81b5d100866c25482ae5ac4a1dfeaee8e99d2afc260dc81fda80e05767b5badd122932372f2330fd1ca1ca8874e39804683".into();
+				let destination: Bytes = "c83ef7b094d48e873f0e13db7892dfe5120418be".into();
 				let transaction = Transaction {
 					version: 0,
 					inputs: vec![ TransactionInput::coinbase(Bytes::default()) ],

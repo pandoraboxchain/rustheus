@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 use parking_lot::RwLock;
-use hash::H256;
+use hash::{H160, H256};
 use bytes::Bytes;
 use chain::{
 	IndexedBlock, IndexedBlockHeader, IndexedTransaction, BlockHeader, Block, Transaction,
@@ -23,7 +23,7 @@ use best_block::BestBlock;
 use {
 	BlockRef, Error, BlockHeaderProvider, BlockProvider, BlockOrigin, TransactionMeta, IndexedBlockProvider,
 	TransactionMetaProvider, TransactionProvider, TransactionOutputProvider, BlockChain, Store,
-	SideChainOrigin, ForkChain, Forkable, CanonStore, ConfigStore
+	SideChainOrigin, ForkChain, Forkable, CanonStore, ConfigStore, TransactionUtxoProvider
 };
 
 const KEY_BEST_BLOCK_NUMBER: &'static str = "best_block_number";
@@ -479,6 +479,36 @@ impl<T> TransactionMetaProvider for BlockChainDatabase<T> where T: KeyValueDatab
 	fn transaction_meta(&self, hash: &H256) -> Option<TransactionMeta> {
 		self.get(Key::TransactionMeta(hash.clone()))
 			.and_then(Value::as_transaction_meta)
+	}
+}
+
+impl<T> TransactionUtxoProvider for BlockChainDatabase<T> where T: KeyValueDatabase {
+	fn transaction_with_output_address(&self, address: &H160) -> Vec<TransactionOutput> {
+		let best_block = self.best_block();
+		let block_ref = BlockRef::Hash(best_block.hash);
+		let transaction_hashes = self.block_transaction_hashes(block_ref);
+		let address_bytes = address.clone().take();
+		let mut outputs: Vec<TransactionOutput> = vec![];
+		for hash in transaction_hashes.iter()	//TODO maybe rewrite it in iterator style
+		{
+			let meta = self.transaction_meta(&hash).unwrap();
+			if !meta.is_fully_spent()
+			{
+				let transaction = self.transaction(&hash).unwrap();
+				for (output_index, is_spent) in meta.bits.iter().enumerate()
+				{
+					if !is_spent
+					{
+						let output = &transaction.outputs[output_index - 1];	//because first one is coinbase
+						if output.script_pubkey.as_ref() == address_bytes
+						{
+							outputs.push(output.clone());
+						}
+					}
+				}
+			}
+		}
+		outputs
 	}
 }
 

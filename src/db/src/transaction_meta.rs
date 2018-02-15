@@ -11,7 +11,7 @@ pub struct TransactionMeta {
 	block_height: u32,
 	/// first bit indicate if transaction is a coinbase transaction
 	/// next bits indicate if transaction has spend outputs
-	bits: BitVec,
+	pub bits: BitVec,
 }
 
 impl Serializable for TransactionMeta {

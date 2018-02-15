@@ -1,6 +1,4 @@
 use keys::{Address, Private};
-use keys::DisplayLayout;
-use std::str::FromStr;
 use wallet_manager_tasks::Task;
 use std::sync::mpsc::{self, Sender, Receiver};
 use service::Service;
@@ -63,9 +61,17 @@ impl WalletManager
             error!("No wallet was created or loaded. Use `walletcreate` or `walletfromkey` to create one.");
             return;
         }  
-        let _wallet = &self.wallets[0];
+        let wallet = &self.wallets[0];
 
-        //TODO implement UTXO set
+        let address_hash = wallet.keys.address().hash;
+        let outputs = self.storage.transaction_with_output_address(&address_hash);
+        println!("outputs len is {}", outputs.len());
+        for output in outputs.iter()
+        {
+            println!("output is {:?}", output);
+        }
+        let balance = outputs.iter().fold(0, |credit, outputs| credit + outputs.value);
+        info!("wallet balance is {}", balance);
     }
 
     fn send_cash(&self, to: Address, amount: u64)

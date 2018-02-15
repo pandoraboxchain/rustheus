@@ -4,7 +4,7 @@ use keys::{KeyPair, Private, Error};
 
 pub struct Wallet
 {
-    keys: KeyPair
+    pub keys: KeyPair
 }
 
 impl Wallet
@@ -31,6 +31,7 @@ impl Wallet
             Ok(keys) =>
             {
                 info!("got keys {}", keys);
+                info!("public hash is {}", keys.address().hash);
                 info!("address is {}", keys.address());
                 Ok(Wallet { keys })
             } 

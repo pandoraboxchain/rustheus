@@ -38,5 +38,5 @@ pub use block_ref::BlockRef;
 pub use error::Error;
 pub use store::{AsSubstore, Store, SharedStore, CanonStore, ConfigStore};
 pub use transaction_meta::TransactionMeta;
-pub use transaction_provider::{TransactionProvider, TransactionOutputProvider, TransactionMetaProvider};
+pub use transaction_provider::{TransactionProvider, TransactionOutputProvider, TransactionMetaProvider, TransactionUtxoProvider};
 

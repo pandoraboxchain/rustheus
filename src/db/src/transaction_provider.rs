@@ -1,4 +1,4 @@
-use hash::H256;
+use hash::{H160, H256};
 use bytes::Bytes;
 use chain::{Transaction, OutPoint, TransactionOutput};
 use {TransactionMeta};
@@ -31,4 +31,8 @@ pub trait TransactionMetaProvider: Send + Sync {
 	/// Returns None if transactin with given hash does not exist
 	/// Otherwise returns transaction meta object
 	fn transaction_meta(&self, hash: &H256) -> Option<TransactionMeta>;
+}
+
+pub trait TransactionUtxoProvider: Send + Sync {
+	fn transaction_with_output_address(&self, address: &H160) -> Vec<TransactionOutput>;
 }
