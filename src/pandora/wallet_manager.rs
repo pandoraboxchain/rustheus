@@ -77,32 +77,57 @@ impl WalletManager
         info!("wallet balance is {}", balance);
     }
 
-    fn send_cash(&self, address: Address, amount: u64)
+    fn send_cash(&self, recipient: Address, amount: u64)
     {
         if self.wallets.is_empty()
         {
             error!("No wallet was created or loaded. Use `walletcreate` or `walletfromkey` to create one.");
             return;
         }  
-        let wallet = &self.wallets[0];
 
-        let address_byte_array = address.hash.take();
+        let wallet = &self.wallets[0];
+        let address_hash = wallet.keys.address().hash;
+        let unspent_out_points = self.storage.transaction_with_output_address(&address_hash);
+        if unspent_out_points.is_empty()
+        {
+            error!("No unspent outputs found. I.e. no money on current address"); //TODO
+            return;
+        }
+        let unspent_outputs: Vec<TransactionOutput> = unspent_out_points.iter()
+                        .map(|out_point| self.storage.transaction_output(out_point, 0).unwrap())
+                        .collect();
+
+        if unspent_outputs[0].value < amount
+        {
+            error!("Not enough money on first input."); //TODO
+            return;
+        }  
+
+        let recipient_address_byte_array = recipient.hash.take();        
+        let mut outputs: Vec<TransactionOutput> = vec![TransactionOutput {
+                value: amount,
+                script_pubkey: recipient_address_byte_array[..].into()
+            }];
+
+        let leftover = unspent_outputs[0].value - amount;
+        if leftover > 0 //if something left, send it back
+        {
+            let user_address_byte_array = address_hash.take();
+            outputs.push(TransactionOutput {
+                value: leftover,
+                script_pubkey: user_address_byte_array[..].into()
+            });
+        }
 
         let transaction = Transaction {
             version: 0,
             inputs: vec![TransactionInput {
-                previous_output: OutPoint {
-                    hash: "fff7f7881a8099afa6940d42d1e7f6362bec38171ea3edf433541db4e4ad969f".into(),
-                    index: 0,
-                },
+                previous_output: unspent_out_points[0].clone(),
                 script_sig: "4830450221008b9d1dc26ba6a9cb62127b02742fa9d754cd3bebf337f7a55d114c8e5cdd30be022040529b194ba3f9281a99f2b1c0a19c0489bc22ede944ccf4ecbab4cc618ef3ed01".into(),
-                sequence: 0xffffffee,
+                sequence: 0xffffffff,
                 script_witness: vec![],
             }],
-            outputs: vec![TransactionOutput {
-                value: amount,
-                script_pubkey: address_byte_array[..].into()
-            }],
+            outputs: outputs,
             lock_time: 0,
         };
 
