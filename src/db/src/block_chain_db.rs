@@ -513,10 +513,8 @@ impl<T> TransactionUtxoProvider for BlockChainDatabase<T> where T: KeyValueDatab
 	fn transaction_with_output_address(&self, address: &H160) -> Vec<OutPoint> {
 		let best_block = self.best_block();
 		let mut out_points: Vec<OutPoint> = vec![];
-		info!("best block number is {}", best_block.number);		
 		for block_number in (0..best_block.number + 1).rev() //add +1 instead of inclusive range, because they are considered unstable
 		{
-			info!("block number is {}", block_number);
 			let block_outpoints = self.transaction_utxo_for_block(block_number, address);
 			out_points.extend(block_outpoints);
 		}

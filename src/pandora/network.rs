@@ -339,8 +339,6 @@ impl NetworkNode {
             ImmutableData::new(message.clone()),
             MessageId::new()
         ));
-
-        info!("Send a message from {:?} to its node manager saying {:?}", node_name, message);
     }
 }
 
