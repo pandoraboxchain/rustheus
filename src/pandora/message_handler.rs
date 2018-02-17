@@ -36,21 +36,26 @@ impl MessageHandler
     {
         info!("received transaction message {:?}", message);
 		let mut mempool = self.mempool.write().unwrap();
-        mempool.transactions.push(message.transaction);
+        mempool.insert(message.transaction);
 	}
     
     fn on_block(&self, message: types::Block)
     {
         let block = message.block;
         let hash = block.hash().clone();
-        match self.store.insert(block.into())
-        {
+        let transactions = block.transactions.clone();
+        match self.store.insert(block.into()) {
             Ok(_) => match self.store.canonize(&hash) {
-                    Ok(_) => info!("Block inserted and canonized with hash {}", hash),
+                    Ok(_) => {
+                        info!("Block inserted and canonized with hash {}", hash);
+                        let mut mempool = self.mempool.write().unwrap();
+                        mempool.remove_transactions(transactions);
+                    },
                     Err(err) => error!("Cannot canonize received block due to {:?}", err)
                 }
             Err(err) => error!("Cannot insert received block due to {:?}", err)
         }
+
     }
 
     fn on_message(&self, header: MessageHeader, payload: &[u8]) -> Result<(), Error>

@@ -209,10 +209,9 @@ impl NetworkNode {
         match dst {
             Authority::NaeManager(_) => {
                 info!(
-                    "{:?} Storing : key {:?}, value {:?} sent from {:?}",
+                    "{:?} Storing : key {:?} sent from {:?}",
                     self.get_debug_name(),
                     data.name(),
-                    data.value(),
                     src.name()
                 );
                 let _ = self.idata_store.insert(*data.name(), data);
@@ -222,10 +221,9 @@ impl NetworkNode {
             Authority::ManagedNode(_) |
             Authority::ClientManager(_) => {
                 info!(
-                    "{:?} Put Request: Updating ClientManager: key {:?}, value {:?}",
+                    "{:?} Put Request: Updating ClientManager: key {:?}",
                     self.get_debug_name(),
-                    data.name(),
-                    data.value()
+                    data.name()
                 );
                 if self.request_cache.insert(msg_id, (dst, src)).is_none() {
                     let src = dst;

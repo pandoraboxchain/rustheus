@@ -58,7 +58,7 @@ impl WalletManager
     {
         if self.wallets.is_empty()
         {
-            error!("No wallet was created or loaded. Use `walletcreate` or `walletfromkey` to create one.");
+            error!("No wallet was created or loaded. Use `walletcreate` or `walletload` to create one.");
             return;
         }  
         let wallet = &self.wallets[0];
@@ -135,7 +135,7 @@ impl WalletManager
         self.wrapper.wrap(&tx);
         
         let mut mempool = self.mempool.write().unwrap();
-        mempool.transactions.push(transaction);
+        mempool.insert(transaction);
     }
 }
 

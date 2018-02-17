@@ -34,20 +34,21 @@ impl InputListener
             try!(writeln!(io, "Hello World !!!"));
             Ok(())
         });
-        shell.new_command("blocksign", "Sign block with all known transactions", 0, |_, senders, _|
+        shell.new_command("blocksign", "Sign block with all known transactions", 1, |_, senders, args|
         {
             let ref executor = senders.0;
-            let task = Task::SignBlock();
-            info!("sign block command was send to executor");            
-            executor.send(task)?;
+            match Address::from_str(args[0])
+            {
+                Ok(coinbase_recipient) => executor.send(Task::SignBlock(coinbase_recipient))?,
+                Err(err) => error!("Can't parse address: {}", err),
+            }            
             Ok(())
         });
         shell.new_command("walletcreate", "Create address and show private and public keys", 0, |_, senders, _|
         {
             let ref wallet_manager = senders.1;
-            let task = WalletTask::CreateWallet();
-            info!("Creating wallet...");            
-            wallet_manager.send(task)?;
+            info!("Creating wallet...");
+            wallet_manager.send(WalletTask::CreateWallet())?;
             Ok(())
         });
         shell.new_command("walletload", "Load wallet from provided private key", 1, |_, senders, args|
