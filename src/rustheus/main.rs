@@ -4,7 +4,7 @@ extern crate routing;
 extern crate clap;
 extern crate lru_time_cache;
 extern crate maidsafe_utilities;
-extern crate env_logger;
+extern crate pretty_env_logger;
 extern crate shrust;
 extern crate bitcrypto as crypto;
 extern crate chain;
@@ -39,7 +39,7 @@ mod wallet;
 
 
 fn main() {
-    env_logger::init().unwrap();
+    pretty_env_logger::init();
     let matches = App::new("pandora")
         .about(
             "The crust peer will run, using any config file it can find to \
