@@ -1,5 +1,5 @@
 [package]
-name = "routing-simple-node"
+name = "rustheus"
 version = "0.1.0"
 authors = ["konchunas@gmail.com <konchunas@gmail.com>"]
 
@@ -25,8 +25,8 @@ db = { path = "src/db" }
 keys = { path = "src/keys" }
 
 [[bin]]
-path = "src/pandora/main.rs"
-name = "pandora"
+path = "src/rustheus/main.rs"
+name = "rustheus"
 
 [workspace]
 members = [

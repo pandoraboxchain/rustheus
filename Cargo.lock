@@ -1108,30 +1108,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "routing-simple-node"
-version = "0.1.0"
-dependencies = [
- "bitcrypto 0.1.0",
- "chain 0.1.0",
- "clap 2.25.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "db 0.1.0",
- "env_logger 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
- "keys 0.1.0",
- "log 0.3.9 (registry+https://github.com/rust-lang/crates.io-index)",
- "lru_time_cache 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "maidsafe_utilities 0.14.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "message 0.1.0",
- "params 0.1.0",
- "primitives 0.1.0",
- "routing 0.34.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "serde 1.0.25 (registry+https://github.com/rust-lang/crates.io-index)",
- "serde_derive 1.0.25 (registry+https://github.com/rust-lang/crates.io-index)",
- "serialization 0.1.0",
- "shrust 0.0.4 (registry+https://github.com/rust-lang/crates.io-index)",
- "unwrap 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
 name = "rust-crypto"
 version = "0.2.36"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1181,6 +1157,30 @@ version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "semver 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "rustheus"
+version = "0.1.0"
+dependencies = [
+ "bitcrypto 0.1.0",
+ "chain 0.1.0",
+ "clap 2.25.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "db 0.1.0",
+ "env_logger 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "keys 0.1.0",
+ "log 0.3.9 (registry+https://github.com/rust-lang/crates.io-index)",
+ "lru_time_cache 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "maidsafe_utilities 0.14.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "message 0.1.0",
+ "params 0.1.0",
+ "primitives 0.1.0",
+ "routing 0.34.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde 1.0.25 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde_derive 1.0.25 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serialization 0.1.0",
+ "shrust 0.0.4 (registry+https://github.com/rust-lang/crates.io-index)",
+ "unwrap 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
