@@ -23,6 +23,7 @@ params = { path = "src/params" }
 primitives = { path = "src/primitives" }
 db = { path = "src/db" }
 keys = { path = "src/keys" }
+script = { path = "src/script" }
 
 [[bin]]
 path = "src/rustheus/main.rs"

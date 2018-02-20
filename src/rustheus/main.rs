@@ -14,6 +14,7 @@ extern crate params;
 extern crate primitives;
 extern crate db;
 extern crate keys;
+extern crate script;
 
 #[macro_use] extern crate log;
 #[macro_use] extern crate unwrap;

@@ -4,7 +4,7 @@ use std::sync::mpsc::{self, Sender, Receiver};
 use mempool::{MempoolRef};
 use std::time::{SystemTime, UNIX_EPOCH};
 use executor_tasks::Task;
-use message::types::{Tx, Block as BlockMessage};
+use message::types::{Block as BlockMessage};
 use message_wrapper::MessageWrapper;
 use db::SharedStore;
 use keys::Address;

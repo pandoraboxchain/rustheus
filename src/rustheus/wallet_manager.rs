@@ -8,8 +8,9 @@ use message::types::Tx;
 use mempool::MempoolRef;
 use wallet::Wallet;
 use db::SharedStore;
+use script::{Script, TransactionInputSigner, SignatureVersion, SighashBase};
 //temp
-use chain::{TransactionInput, TransactionOutput, OutPoint};
+use chain::{TransactionInput, TransactionOutput};
 
 
 pub struct WalletManager
@@ -123,19 +124,32 @@ impl WalletManager
             version: 0,
             inputs: vec![TransactionInput {
                 previous_output: unspent_out_points[0].clone(),
-                script_sig: "4830450221008b9d1dc26ba6a9cb62127b02742fa9d754cd3bebf337f7a55d114c8e5cdd30be022040529b194ba3f9281a99f2b1c0a19c0489bc22ede944ccf4ecbab4cc618ef3ed01".into(),
+                script_sig: "".into(),
                 sequence: 0xffffffff,
                 script_witness: vec![],
             }],
+            outputs: outputs.clone(),
+            lock_time: 0,
+        };
+
+        let signer: TransactionInputSigner = transaction.into();
+        let prevout_script_pubkey: Script = unspent_outputs[0].script_pubkey.clone().into();
+        //TODO find out if we need to use witness hashing here
+        //NOTE input_amount is unused if signing by original procedure
+        let signed_input = signer.signed_input(&wallet.keys, /*input_index*/ 0, /*input_amount*/ 0, &prevout_script_pubkey, SignatureVersion::Base, SighashBase::All.into());
+
+        let signed_transaction = Transaction {
+            version: 0,
+            inputs: vec![signed_input],
             outputs: outputs,
             lock_time: 0,
         };
 
-        let tx = Tx { transaction: transaction.clone() };
+        let tx = Tx { transaction: signed_transaction.clone() };
         self.wrapper.wrap(&tx);
         
         let mut mempool = self.mempool.write().unwrap();
-        mempool.insert(transaction);
+        mempool.insert(signed_transaction);
     }
 }
 
@@ -156,7 +170,7 @@ impl Service for WalletManager
                 match task
                 {
                     Task::CreateWallet() => self.create_wallet(),
-                    Task::LoadWallet(private) => self.load_from_key(private), //TODO simpilify this
+                    Task::LoadWallet(private) => self.load_from_key(private),
                     Task::CalculateBalance() => self.calculate_balance(),
                     Task::SendCash(to, amount) => self.send_cash(to, amount)
                 }
