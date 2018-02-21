@@ -8,7 +8,7 @@ use message::types::Tx;
 use mempool::MempoolRef;
 use wallet::Wallet;
 use db::SharedStore;
-use script::{Script, TransactionInputSigner, SignatureVersion, SighashBase};
+use script::{Script, TransactionInputSigner, SignatureVersion, SighashBase, Builder};
 //temp
 use chain::{TransactionInput, TransactionOutput};
 
@@ -64,8 +64,8 @@ impl WalletManager
         }  
         let wallet = &self.wallets[0];
 
-        let address_hash = wallet.keys.address().hash;
-        let out_points = self.storage.transaction_with_output_address(&address_hash);
+        let user_address_hash = wallet.keys.address().hash;
+        let out_points = self.storage.transaction_with_output_address(&user_address_hash);
         println!("out_points len is {}", out_points.len());
         for out_point in out_points.iter()
         {
@@ -87,8 +87,8 @@ impl WalletManager
         }  
 
         let wallet = &self.wallets[0];
-        let address_hash = wallet.keys.address().hash;
-        let unspent_out_points = self.storage.transaction_with_output_address(&address_hash);
+        let user_address_hash = wallet.keys.address().hash;
+        let unspent_out_points = self.storage.transaction_with_output_address(&user_address_hash);
         if unspent_out_points.is_empty()
         {
             error!("No unspent outputs found. I.e. no money on current address"); //TODO
@@ -102,21 +102,19 @@ impl WalletManager
         {
             error!("Not enough money on first input."); //TODO
             return;
-        }  
+        }
 
-        let recipient_address_byte_array = recipient.hash.take();        
         let mut outputs: Vec<TransactionOutput> = vec![TransactionOutput {
                 value: amount,
-                script_pubkey: recipient_address_byte_array[..].into()
+                script_pubkey: Builder::build_p2pkh(&recipient.hash).to_bytes()
             }];
 
         let leftover = unspent_outputs[0].value - amount;
         if leftover > 0 //if something left, send it back
         {
-            let user_address_byte_array = address_hash.take();
             outputs.push(TransactionOutput {
                 value: leftover,
-                script_pubkey: user_address_byte_array[..].into()
+                script_pubkey: Builder::build_p2pkh(&user_address_hash).to_bytes()
             });
         }
 

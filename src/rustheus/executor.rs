@@ -8,6 +8,7 @@ use message::types::{Block as BlockMessage};
 use message_wrapper::MessageWrapper;
 use db::SharedStore;
 use keys::Address;
+use script::Builder;
 
 pub struct Executor
 {
@@ -87,7 +88,7 @@ impl Executor
             inputs: vec![TransactionInput::coinbase(Bytes::default())],
             outputs: vec![TransactionOutput {
                 value: 50,
-                script_pubkey: recipient.hash[..].into(),
+                script_pubkey: Builder::build_p2pkh(&recipient.hash).to_bytes()
             }],
             lock_time: 0,
         }

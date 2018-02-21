@@ -500,10 +500,9 @@ impl<T> TransactionUtxoProvider for BlockChainDatabase<T> where T: KeyValueDatab
 					if !is_spent
 					{
 						let output = &transaction.outputs[index];
-						info!("output.script_pubkey is {:?}", output.script_pubkey);
 						
-						//TODO maybe using script here is redundant, its enough to compare plai bytes
-						let ref script_bytes = transaction.outputs[index].script_pubkey;
+						//TODO maybe using script here is redundant and its enough to compare plain bytes?
+						let ref script_bytes = output.script_pubkey;
 						let script: Script = script_bytes.clone().into();
 						let script_addresses = script.extract_destinations().unwrap_or(vec![]);
 						if script_addresses.iter().any(|address| address.hash[..] == address_bytes)
