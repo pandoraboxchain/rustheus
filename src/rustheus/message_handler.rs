@@ -8,6 +8,10 @@ use service::Service;
 use crypto::checksum;
 use db::SharedStore;
 use mempool::MempoolRef;
+use script::{verify_script, TransactionInputSigner, SignatureVersion, TransactionSignatureChecker};
+use script::{ScriptWitness, VerificationFlags};
+use script::Error as ScriptError;
+use chain::Transaction;
 
 pub struct MessageHandler
 {
@@ -32,11 +36,41 @@ impl MessageHandler
         }
     }
 
+    //TODO move it to appropriate file
+    //TODO make it check not only [0] input
+    fn verify_transaction(&self, transaction: &Transaction) -> Result<(), ScriptError>
+    {
+        let input = &transaction.inputs[0];
+
+        let prev_output = self.store.transaction_output(&input.previous_output, 0).expect("No such previous output in received transaction found. Discarding");
+
+        let signer: TransactionInputSigner = transaction.clone().into();
+        let checker = TransactionSignatureChecker {
+            signer: signer,
+            input_index: 0,
+            input_amount: 0,
+        };
+
+        let script_sig = input.script_sig.clone().into();
+        let script_pubkey = prev_output.script_pubkey.into();
+
+        verify_script(&script_sig, &script_pubkey, &ScriptWitness::default(), &VerificationFlags::default(), &checker,SignatureVersion::Base)
+    }
+    //TODO check inputs other than [0]
     fn on_transaction(&self, message: types::Tx)
     {
         info!("received transaction message {:?}", message);
-		let mut mempool = self.mempool.write().unwrap();
-        mempool.insert(message.transaction);
+
+        let verification_result = self.verify_transaction(&message.transaction);
+
+        match verification_result
+        {
+            Err(err) => error!("Failed to accept transaction to mempool. {}", err),
+            Ok(_) => {
+                let mut mempool = self.mempool.write().unwrap();
+                mempool.insert(message.transaction);       
+            }
+        }
 	}
     
     fn on_block(&self, message: types::Block)

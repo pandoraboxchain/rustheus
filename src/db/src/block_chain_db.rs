@@ -25,6 +25,7 @@ use {
 	TransactionMetaProvider, TransactionProvider, TransactionOutputProvider, BlockChain, Store,
 	SideChainOrigin, ForkChain, Forkable, CanonStore, ConfigStore, TransactionUtxoProvider
 };
+use script::Script;
 
 const KEY_BEST_BLOCK_NUMBER: &'static str = "best_block_number";
 const KEY_BEST_BLOCK_HASH: &'static str = "best_block_hash";
@@ -498,8 +499,14 @@ impl<T> TransactionUtxoProvider for BlockChainDatabase<T> where T: KeyValueDatab
 				{
 					if !is_spent
 					{
-						let output = &transaction.outputs[index];	
-						if output.script_pubkey.as_ref() == address_bytes
+						let output = &transaction.outputs[index];
+						info!("output.script_pubkey is {:?}", output.script_pubkey);
+						
+						//TODO maybe using script here is redundant, its enough to compare plai bytes
+						let ref script_bytes = transaction.outputs[index].script_pubkey;
+						let script: Script = script_bytes.clone().into();
+						let script_addresses = script.extract_destinations().unwrap_or(vec![]);
+						if script_addresses.iter().any(|address| address.hash[..] == address_bytes)
 						{
 							outputs.push( OutPoint { hash: hash.clone(), index: index as u32 } );
 						}

@@ -120,11 +120,12 @@ impl WalletManager
             });
         }
 
+
         let transaction = Transaction {
             version: 0,
             inputs: vec![TransactionInput {
                 previous_output: unspent_out_points[0].clone(),
-                script_sig: "".into(),
+                script_sig: unspent_outputs[0].script_pubkey.clone(),
                 sequence: 0xffffffff,
                 script_witness: vec![],
             }],
