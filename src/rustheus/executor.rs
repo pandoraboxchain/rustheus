@@ -1,4 +1,4 @@
-use chain::{BlockHeader, Block, Transaction, TransactionInput, TransactionOutput, OutPoint};
+use chain::{BlockHeader, Block, Transaction, TransactionInput, TransactionOutput};
 use crypto::DHash256;
 use std::sync::mpsc::{self, Sender, Receiver};
 use mempool::{MempoolRef};
@@ -69,7 +69,7 @@ impl Executor
             nonce: 6,
         };
         let mut mempool = self.mempool.write().unwrap();
-        let mut transactions = vec![Executor::create_coinbase(coinbase_recipient)];
+        let mut transactions = vec![self.create_coinbase(coinbase_recipient)];
         transactions.extend(mempool.drain_as_vec());
         let mut block = Block::new(header, transactions);
         
@@ -80,7 +80,7 @@ impl Executor
         self.message_wrapper.wrap(&block_message);
     }
 
-    fn create_coinbase(recipient: Address) -> Transaction
+    fn create_coinbase(&self, recipient: Address) -> Transaction
     {
         use chain::bytes::Bytes;
         Transaction {
@@ -90,7 +90,7 @@ impl Executor
                 value: 50,
                 script_pubkey: Builder::build_p2pkh(&recipient.hash).to_bytes()
             }],
-            lock_time: 0,
+            lock_time: self.storage.best_block().number + 1, //use lock_time as uniqueness provider for coinbase transaction
         }
     }
 }

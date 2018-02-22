@@ -5,7 +5,7 @@
             "type": "lldb",
             "request": "launch",
             "name": "Debug",
-            "program": "${workspaceRoot}/target/debug/pandora",
+            "program": "${workspaceRoot}/target/debug/rustheus",
             "args": ["-n","3"],     //launch as third client
             "cwd": "${workspaceRoot}/target/debug/",
             "preLaunchTask": "build",

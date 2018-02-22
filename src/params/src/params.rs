@@ -96,11 +96,7 @@ impl NetworkParams {
 	}
 
 	pub fn default_verification_edge(&self) -> H256 {
-		match *self {
-			NetworkParams::Mainnet => H256::from_reversed_str("0000000000000000030abc968e1bd635736e880b946085c93152969b9a81a6e2"),
-			NetworkParams::Testnet => H256::from_reversed_str("000000000871ee6842d3648317ccc8a435eb8cc3c2429aee94faff9ba26b05a0"),
-			_ => self.genesis_block().hash(),
-		}
+		 self.genesis_block().hash()
 	}
 }
 
