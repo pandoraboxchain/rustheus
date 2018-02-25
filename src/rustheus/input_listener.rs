@@ -1,6 +1,5 @@
-use shrust::{Shell, ShellIO};
+use shrust::{Shell, ShellIO, ExecError};
 use std::net::TcpListener;
-use std::thread;
 use std::sync::mpsc::Sender;
 use std::io::Write;
 use std::str::FromStr;
@@ -8,26 +7,31 @@ use executor_tasks::Task;
 use keys::{Private, Address};
 use wallet_manager_tasks::Task as WalletTask;
 
+type Senders = (Sender<Task>, Sender<WalletTask>, Sender<bool>); //TODO please find a way to do this better. This tuple is needed to access senders from command closures
+
 pub struct InputListener
 {
     //shell: Shell<Sender<Task>>,
     //executor: Sender<Task>
+    node_number: u32,
+    shell: Shell<Senders>
 }
 
 impl InputListener
 {
-    pub fn new(is_first_node: bool, executor: Sender<Task>, wallet_manager: Sender<WalletTask>) -> Self
+    pub fn new(node_number: u32, executor: Sender<Task>,
+                                 wallet_manager: Sender<WalletTask>,
+                                 terminator: Sender<bool>) -> Self
     {
-        let _shell = Self::create_shell(is_first_node, executor, wallet_manager);
-        InputListener { }
+        let shell = Self::create_shell(executor, wallet_manager, terminator);
+        InputListener { node_number, shell }
     }
 
-    fn create_shell(is_first_node: bool, executor: Sender<Task>, wallet_manager: Sender<WalletTask>)
+    fn create_shell(executor: Sender<Task>,
+                    wallet_manager: Sender<WalletTask>,
+                    terminator: Sender<bool>) -> Shell<Senders>
     {    
-        let port = if is_first_node { "1234" } else { "1235" };
-        info!("Node is about to start. You may now run $ telnet localhost {}", port);
-
-        let senders = (executor, wallet_manager);
+        let senders = (executor, wallet_manager, terminator); 
 
         let mut shell = Shell::new(senders);
         shell.new_command_noargs("hello", "Say 'hello' to the world", |io, _| {
@@ -96,28 +100,37 @@ impl InputListener
             }
             Ok(())
         });
+        shell.new_command("shutdown", "Save database and shutdown properly", 0, |_, senders, _|
+        {
+            let ref terminator = senders.2;        
+            terminator.send(true)?;
+            Err(ExecError::Quit)
+        });
 
-        let serv = TcpListener::bind(String::from("0.0.0.0:") + port).expect("Cannot open socket");
+        shell
+    }
+
+    pub fn run(&self)
+    {
+        let port = "407".to_owned() + &self.node_number.to_string();
+        info!("Node is about to start. You may now run $ telnet localhost {}", port);
+
+        let serv = TcpListener::bind(String::from("0.0.0.0:") + &port).expect("Cannot open socket");
         serv.set_nonblocking(true).expect("Cannot set non-blocking");
 
-        thread::spawn(move || 
-        {
-            for stream in serv.incoming() {
+        for stream in serv.incoming() {
             match stream {
                     Ok(stream) => 
                     {
-                        let mut shell = shell.clone();
+                        let mut shell = self.shell.clone();
                         let mut io = ShellIO::new_io(stream);
                         shell.run_loop(&mut io);
+                        break;  //TODO halt node as soon as we exit telnet for now
                     }
-                    Err(_) =>
-                    { 
-                        //error!("{}", e);  
-                    }
+                    Err(_) => {},
                 }
             }
-        });
 
-        //return shell;
+        debug!("input listener thread ended");    
     }
 }

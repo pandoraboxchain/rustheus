@@ -13,8 +13,6 @@ use script::Builder;
 pub struct Executor
 {
     task_receiver: Receiver<Task>,
-    task_sender: Sender<Task>,
-    //mempool_sender: Sender<Transaction>
     message_wrapper: MessageWrapper,
     mempool: MempoolRef,
     storage: SharedStore
@@ -22,22 +20,17 @@ pub struct Executor
 
 impl Executor
 {
-    pub fn new(mempool: MempoolRef, storage: SharedStore, message_wrapper: MessageWrapper) -> Self
+    pub fn new(mempool: MempoolRef, storage: SharedStore, message_wrapper: MessageWrapper) -> (Self, Sender<Task>)
     {
         let (task_sender, task_receiver) = mpsc::channel();
-        Executor
+        let executor = Executor
         {
-            task_sender,
             task_receiver,
             message_wrapper,
             mempool,
             storage,
-        }
-    }
-
-    pub fn get_sender(&self) -> Sender<Task>
-    {
-        self.task_sender.clone()
+        };
+        (executor, task_sender)
     }
 
     pub fn run(&mut self)
@@ -51,6 +44,10 @@ impl Executor
                 {
                     Task::SignBlock(coinbase_recipient) => self.sign_block(coinbase_recipient),
                 }
+            }
+            else
+            {
+                break;
             }
         } 
     }

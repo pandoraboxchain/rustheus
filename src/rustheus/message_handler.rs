@@ -16,24 +16,22 @@ use chain::Transaction;
 pub struct MessageHandler
 {
     mempool: MempoolRef,
-    
-    network_data_sender: Sender<Bytes>,
     network_data_receiver: Receiver<Bytes>,
-
     store: SharedStore
 }
 
 impl MessageHandler
 {
-    pub fn new(mempool: MempoolRef, store: SharedStore) -> Self
+    pub fn new(mempool: MempoolRef, store: SharedStore) -> (Self, Sender<Bytes>)
     {
         let (network_data_sender, network_data_receiver) = mpsc::channel();
-        MessageHandler {
+
+        let message_handler = MessageHandler {
                     mempool,
-                    network_data_sender,
                     network_data_receiver,
                     store
-        }
+        };
+        (message_handler, network_data_sender)
     }
 
     //TODO move it to appropriate file
@@ -116,10 +114,6 @@ impl MessageHandler
 impl Service for MessageHandler
 {
     type Item = Bytes;
-    fn get_sender(&self) -> Sender<Self::Item>
-    {
-        self.network_data_sender.clone()
-    }
 
     fn run(&mut self)
     {
@@ -142,6 +136,11 @@ impl Service for MessageHandler
                     }
                     Err(err) => error!("Unable to deserialize received message header. Reason: {:?}", err)
                 }
+            }
+            else
+            {
+                debug!("message handler thread finished");
+                break;
             }
         } 
     }

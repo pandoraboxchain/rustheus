@@ -88,7 +88,7 @@ impl BlockChainDatabase<MemoryDatabase> {
 
 impl<T> BlockChainDatabase<CacheDatabase<AutoFlushingOverlayDatabase<T>>> where T: KeyValueDatabase {
 	pub fn open_with_cache(db: T) -> Self {
-		let db = CacheDatabase::new(AutoFlushingOverlayDatabase::new(db, 50));
+		let db = CacheDatabase::new(AutoFlushingOverlayDatabase::new(db, 5));
 		let best_block = Self::read_best_block(&db).unwrap_or_default();
 		BlockChainDatabase {
 			best_block: RwLock::new(best_block),

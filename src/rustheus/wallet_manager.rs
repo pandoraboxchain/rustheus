@@ -16,7 +16,6 @@ use chain::{TransactionInput, TransactionOutput};
 pub struct WalletManager
 {
     receiver: Receiver<Task>,
-    sender: Sender<Task>,
     mempool: MempoolRef,
     wrapper: MessageWrapper,
     wallets: Vec<Wallet>,
@@ -25,19 +24,19 @@ pub struct WalletManager
 
 impl WalletManager
 {
-    pub fn new(mempool: MempoolRef, storage: SharedStore, wrapper: MessageWrapper) -> Self
+    pub fn new(mempool: MempoolRef, storage: SharedStore, wrapper: MessageWrapper) -> (Self, Sender<Task>)
     {
         let (sender, receiver) = mpsc::channel();
         let wallets = vec![];
-        WalletManager
+        let wallet_manager = WalletManager
         {
-            sender,
             receiver,
             mempool,
             wrapper,
             wallets,
             storage
-        }
+        };
+        (wallet_manager, sender)
     }
 
     fn create_wallet(&mut self)
@@ -155,10 +154,6 @@ impl WalletManager
 impl Service for WalletManager
 {
     type Item = Task;
-    fn get_sender(&self) -> Sender<Self::Item>
-    {
-        self.sender.clone()
-    }
 
     fn run(&mut self)
     {
@@ -173,6 +168,11 @@ impl Service for WalletManager
                     Task::CalculateBalance() => self.calculate_balance(),
                     Task::SendCash(to, amount) => self.send_cash(to, amount)
                 }
+            }
+            else
+            {
+                debug!("wallet manager thread ended");
+                break;
             }
         } 
     }

@@ -76,6 +76,10 @@ impl<T> KeyValueDatabase for AutoFlushingOverlayDatabase<T> where T: KeyValueDat
 
 impl<T> Drop for AutoFlushingOverlayDatabase<T> where T: KeyValueDatabase {
 	fn drop(&mut self) {
-		self.flush().expect("Failed to save database");
+		match self.flush()
+		{
+			Ok(_) => info!("Database saved"),
+			Err(_) => error!("Failed to save database")
+		}
 	}
 }

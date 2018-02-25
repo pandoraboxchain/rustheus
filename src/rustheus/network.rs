@@ -19,20 +19,21 @@ pub struct NetworkNode {
 
     received_bytes_listener: Sender<Bytes>,
     
-    bytes_to_send_tx: Sender<Bytes>,  //public
-    bytes_to_send_rx: Receiver<Bytes>  
+    bytes_to_send_rx: Receiver<Bytes>,
+    terminate_listener_rx: Receiver<bool>, 
 }
 
 impl NetworkNode {
     /// Creates a new node and attempts to establish a connection to the network.
-    pub fn new(first: bool, received_bytes_listener: Sender<Bytes>) -> NetworkNode {
+    pub fn new(first: bool, received_bytes_listener: Sender<Bytes>) -> (Self, Sender<Bytes>, Sender<bool>)  {
         let dev_config = DevConfig { allow_multiple_lan_nodes: true, ..Default::default() };
         let config = Config { dev: Some(dev_config) };
         let node = unwrap!(Node::builder().first(first).config(config).create());
 
         let (bytes_to_send_tx, bytes_to_send_rx) = mpsc::channel();
+        let (terminate_listener_tx, terminate_listener_rx) = mpsc::channel();
 
-        NetworkNode {
+        let network = NetworkNode {
             node: node,
             idata_store: HashMap::new(),
             client_accounts: HashMap::new(),
@@ -40,9 +41,11 @@ impl NetworkNode {
 
             received_bytes_listener,   
             
-            bytes_to_send_tx,  //public
-            bytes_to_send_rx 
-        }
+            bytes_to_send_rx,
+            terminate_listener_rx,
+        };
+
+        (network, bytes_to_send_tx, terminate_listener_tx)
     }
 
     pub fn run(&mut self)
@@ -59,13 +62,14 @@ impl NetworkNode {
                 Ok(event) => disconnected = !self.handle_node_event(event),
                 Err(error) => if error == TryRecvError::Disconnected { disconnected = true }
             }
+
+            if let Ok(_) = self.terminate_listener_rx.try_recv()
+            {
+                disconnected = true;
+            }
+
             thread::sleep(Duration::from_millis(400));  //TODO make select! macro to wait for recv any of two threads
         }
-    }
-
-    pub fn get_bytes_to_send_sender(&self) -> Sender<Bytes>
-    {
-        self.bytes_to_send_tx.clone()
     }
 
     /// Runs the event loop, handling events raised by the Routing library.

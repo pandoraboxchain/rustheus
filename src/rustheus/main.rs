@@ -15,6 +15,7 @@ extern crate primitives;
 extern crate db;
 extern crate keys;
 extern crate script;
+extern crate ctrlc;
 
 #[macro_use] extern crate log;
 #[macro_use] extern crate unwrap;
@@ -25,6 +26,7 @@ use clap::*;
 use std::thread;
 use params::NetworkParams;
 use std::sync::{Arc, RwLock};
+use std::process;
 
 mod mempool; use mempool::Mempool;
 mod network; use network::NetworkNode;
@@ -56,46 +58,54 @@ fn main() {
             Arg::with_name("number")
                 .short("n")
                 .long("number")
-                .help("Number for node unique database")
+                .help("Number for node unique database for debug usage. Allows have databases inside different folders and unique telnet ports to communicate")
                 .takes_value(true)
         )
         .get_matches();
 
     let is_first_node = matches.is_present("first");
-    
+
+    //setup database
     let db_path_string = "./db".to_owned() + matches.value_of("number").unwrap_or("") + "/";
     let default_db_cache = 512;
     let storage = db_utils::open_db(db_path_string, default_db_cache);
     db_utils::init_db(storage.clone(), NetworkParams::Mainnet).unwrap(); //init db with genesis block
-
+    
+    //setup mempool
     let mempool_ref = Arc::new(RwLock::new(Mempool::new()));
-    let mut message_handler = MessageHandler::new(mempool_ref.clone(), storage.clone());    
+    let (mut message_handler, bytes_received_sender) = MessageHandler::new(mempool_ref.clone(), storage.clone());    
 
-    let mut network = NetworkNode::new(is_first_node, message_handler.get_sender());
+    //setup networking
+    let (mut network, network_bytes_sender, terminate_sender) = NetworkNode::new(is_first_node, bytes_received_sender);
 
-    let mut wallet_manager = WalletManager::new(mempool_ref.clone(), storage.clone(), MessageWrapper::new(network.get_bytes_to_send_sender()));
-    let mut executor = Executor::new(mempool_ref.clone(), storage.clone(), MessageWrapper::new(network.get_bytes_to_send_sender()));
-    let input_listener = InputListener::new(is_first_node, executor.get_sender(), wallet_manager.get_sender());
+    //setup 
+    let (mut wallet_manager, wallet_manager_sender) = WalletManager::new(mempool_ref.clone(), storage.clone(), MessageWrapper::new(network_bytes_sender.clone()));
+    let (mut executor, executor_sender) = Executor::new(mempool_ref.clone(), storage.clone(), MessageWrapper::new(network_bytes_sender.clone()));
+    
+    //setup telnet listener
+    let node_unique_number = matches.value_of("number").unwrap_or("0").parse::<u32>().expect("Node number is incorrect");
+    let input_listener = InputListener::new(node_unique_number, executor_sender, wallet_manager_sender, terminate_sender);
 
-    thread::spawn(move || executor.run() );
-    thread::spawn(move || wallet_manager.run() );    
-    thread::spawn(move || message_handler.run() );
+    //launch services in different threads
+    let input_listener_thread = thread::spawn(move || input_listener.run() );
+    let executor_thread = thread::spawn(move || executor.run() );
+    let wallet_manager_thread = thread::spawn(move || wallet_manager.run() );    
+    let message_handler_thread = thread::spawn(move || message_handler.run() );
 
-    network.run();
+    //prepare to handle Ctrl-C
+    ctrlc::set_handler(move || {
+        info!("Interrupted. Your blockchain latest state may not be saved. Please use `shutdown` command to exit properly");
+        process::exit(0);
+        //TODO send interrupt to input_listener and network_node, so we can exit properly even without `shutdown` command
+        //interrupt_sender.send(true).expect("Could not exit properly. Blockchain latest state may be not saved");
+    }).expect("Error setting Ctrl-C handler");
 
-    let _pandora = PandoraNode
-        {
-            network,
-            //executor,
-            input_listener
-        };
+    network.run();  //main thread loop
+    drop(network);  //remove everything after network loop was somehow interrupted
 
-    //let mut network = pandora.network;
-}
-
-pub struct PandoraNode
-{
-    network: NetworkNode,
-    //executor: Executor,
-    input_listener: InputListener
+    //wait for other threads to finish
+    executor_thread.join().unwrap();   
+    wallet_manager_thread.join().unwrap();
+    input_listener_thread.join().unwrap();
+    message_handler_thread.join().unwrap();
 }
