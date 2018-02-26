@@ -1,11 +1,11 @@
 use shrust::{Shell, ShellIO, ExecError};
 use std::net::TcpListener;
 use std::sync::mpsc::Sender;
-use std::io::Write;
 use std::str::FromStr;
 use executor_tasks::Task;
 use keys::{Private, Address};
 use wallet_manager_tasks::Task as WalletTask;
+use primitives::hash::H256;
 
 type Senders = (Sender<Task>, Sender<WalletTask>, Sender<bool>); //TODO please find a way to do this better. This tuple is needed to access senders from command closures
 
@@ -34,10 +34,6 @@ impl InputListener
         let senders = (executor, wallet_manager, terminator); 
 
         let mut shell = Shell::new(senders);
-        shell.new_command_noargs("hello", "Say 'hello' to the world", |io, _| {
-            try!(writeln!(io, "Hello World !!!"));
-            Ok(())
-        });
         shell.new_command("blocksign", "Sign block with all known transactions", 1, |_, senders, args|
         {
             let ref executor = senders.0;
@@ -105,6 +101,21 @@ impl InputListener
             let ref terminator = senders.2;        
             terminator.send(true)?;
             Err(ExecError::Quit)
+        });
+        shell.new_command("txmeta", "Get transaction meta data for debug", 1, |_, senders, args|
+        {
+            let ref executor = senders.0;
+            match H256::from_str(args[0])
+            {
+                Ok(hash) => {
+                    executor.send(Task::GetTransactionMeta(hash))?;
+                    Ok(())
+                },
+                Err(err) => {
+                    error!("Can't parse hash: {}", err);
+                    Ok(())  //TODO find a way to return proper error
+                }
+            }
         });
 
         shell

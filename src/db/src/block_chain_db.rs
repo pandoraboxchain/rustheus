@@ -499,15 +499,18 @@ impl<T> TransactionUtxoProvider for BlockChainDatabase<T> where T: KeyValueDatab
 				{
 					if !is_spent
 					{
-						let output = &transaction.outputs[index];
-						
-						//TODO maybe using script here is redundant and its enough to compare plain bytes?
-						let ref script_bytes = output.script_pubkey;
-						let script: Script = script_bytes.clone().into();
-						let script_addresses = script.extract_destinations().unwrap_or(vec![]);
-						if script_addresses.iter().any(|address| address.hash[..] == address_bytes)
+						//TODO somehow transaction meta contains redundant bits after being loaded from disk
+						if transaction.outputs.len() > index
 						{
-							outputs.push( OutPoint { hash: hash.clone(), index: index as u32 } );
+							let output = &transaction.outputs[index];
+							//TODO maybe using script here is redundant and its enough to compare plain bytes?
+							let ref script_bytes = output.script_pubkey;
+							let script: Script = script_bytes.clone().into();
+							let script_addresses = script.extract_destinations().unwrap_or(vec![]);
+							if script_addresses.iter().any(|address| address.hash[..] == address_bytes)
+							{
+								outputs.push( OutPoint { hash: hash.clone(), index: index as u32 } );
+							}
 						}
 					}
 				}

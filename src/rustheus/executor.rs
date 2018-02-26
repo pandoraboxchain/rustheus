@@ -9,6 +9,7 @@ use message_wrapper::MessageWrapper;
 use db::SharedStore;
 use keys::Address;
 use script::Builder;
+use primitives::hash::H256;
 
 pub struct Executor
 {
@@ -43,6 +44,7 @@ impl Executor
                 match task
                 {
                     Task::SignBlock(coinbase_recipient) => self.sign_block(coinbase_recipient),
+                    Task::GetTransactionMeta(hash) => self.get_transaction_meta(hash),                    
                 }
             }
             else
@@ -88,6 +90,15 @@ impl Executor
                 script_pubkey: Builder::build_p2pkh(&recipient.hash).to_bytes()
             }],
             lock_time: self.storage.best_block().number + 1, //use lock_time as uniqueness provider for coinbase transaction
+        }
+    }
+
+    fn get_transaction_meta(&self, hash: H256)
+    {
+        match self.storage.transaction_meta(&hash)
+        {
+            Some(meta) => debug!("Meta is {:?}", meta),
+            None => error!("No transaction with such hash")
         }
     }
 }
