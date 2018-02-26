@@ -7,7 +7,8 @@ use keys::{Private, Address};
 use wallet_manager_tasks::Task as WalletTask;
 use primitives::hash::H256;
 
-type Senders = (Sender<Task>, Sender<WalletTask>, Sender<bool>); //TODO please find a way to do this better. This tuple is needed to access senders from command closures
+//TODO please find a way to do this better. This tuple is needed to access senders from command closures
+type Senders = (Sender<Task>, Sender<WalletTask>, Sender<bool>);
 
 pub struct InputListener
 {

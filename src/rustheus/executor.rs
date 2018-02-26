@@ -4,12 +4,14 @@ use std::sync::mpsc::{self, Sender, Receiver};
 use mempool::{MempoolRef};
 use std::time::{SystemTime, UNIX_EPOCH};
 use executor_tasks::Task;
-use message::types::{Block as BlockMessage};
+use message::types::{Block as BlockMessage, GetBlocks};
 use message_wrapper::MessageWrapper;
 use db::SharedStore;
 use keys::Address;
 use script::Builder;
 use primitives::hash::H256;
+
+type BlockHeight = u32;
 
 pub struct Executor
 {
@@ -44,7 +46,8 @@ impl Executor
                 match task
                 {
                     Task::SignBlock(coinbase_recipient) => self.sign_block(coinbase_recipient),
-                    Task::GetTransactionMeta(hash) => self.get_transaction_meta(hash),                    
+                    Task::GetTransactionMeta(hash) => self.get_transaction_meta(hash),         
+                    Task::RequestLatestBlocks() => self.request_latest_blocks(),  
                 }
             }
             else
@@ -101,4 +104,40 @@ impl Executor
             None => error!("No transaction with such hash")
         }
     }
+
+    fn request_latest_blocks(&self)
+    {
+        let index = self.storage.best_block().number;
+		let step = 1u32;
+        let block_locator_hashes = self.block_locator_hashes_for_storage(index, step);
+        let get_blocks_msg = GetBlocks::with_block_locator_hashes(block_locator_hashes);
+        self.message_wrapper.wrap(&get_blocks_msg);
+    }
+
+    /// Calculate block locator hashes for storage
+	fn block_locator_hashes_for_storage(&self, mut index: BlockHeight, mut step: BlockHeight) -> Vec<H256> {
+        let mut hashes = vec![];
+        
+        loop {
+			let block_hash = self.storage.block_hash(index)
+				.expect("private function; index calculated in `block_locator_hashes`; qed");
+			hashes.push(block_hash);
+
+			if hashes.len() >= 10 {
+				step <<= 1;
+			}
+			if index < step {
+				// always include genesis hash
+				if index != 0 {
+                    let genesis_block_hash = self.storage.block_hash(0).expect("No genesis block found at height 0");
+					hashes.push(genesis_block_hash);
+				}
+
+				break;
+			}
+			index -= step;
+		}
+
+        hashes
+	}
 }

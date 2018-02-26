@@ -27,6 +27,7 @@ use std::thread;
 use params::NetworkParams;
 use std::sync::{Arc, RwLock};
 use std::process;
+use std::sync::mpsc;
 
 mod mempool; use mempool::Mempool;
 mod network; use network::NetworkNode;
@@ -38,7 +39,8 @@ mod executor_tasks;
 mod service; use service::Service;
 mod db_utils;
 mod wallet_manager; mod wallet_manager_tasks; use wallet_manager::WalletManager;
-mod wallet; 
+mod wallet;
+mod responder; use responder::Responder;
 
 
 fn main() {
@@ -73,24 +75,49 @@ fn main() {
     
     //setup mempool
     let mempool_ref = Arc::new(RwLock::new(Mempool::new()));
-    let (mut message_handler, bytes_received_sender) = MessageHandler::new(mempool_ref.clone(), storage.clone());    
 
-    //setup networking
-    let (mut network, network_bytes_sender, terminate_sender) = NetworkNode::new(is_first_node, bytes_received_sender);
+    //setup cross thread communication channels
+    let (to_network_sender, to_network_receiver) = mpsc::channel();
+    let (from_network_sender, from_network_receiver) = mpsc::channel();
+    let (responder_task_sender, responder_task_receiver) = mpsc::channel();
+    let (terminate_sender, terminate_receiver) = mpsc::channel();
 
-    //setup 
-    let (mut wallet_manager, wallet_manager_sender) = WalletManager::new(mempool_ref.clone(), storage.clone(), MessageWrapper::new(network_bytes_sender.clone()));
-    let (mut executor, executor_sender) = Executor::new(mempool_ref.clone(), storage.clone(), MessageWrapper::new(network_bytes_sender.clone()));
+    //setup network requests responder
+    let mut responder = Responder {
+        storage: storage.clone(),
+        task_receiver: responder_task_receiver,
+        message_wrapper: MessageWrapper::new(to_network_sender.clone())
+    };
+    //setup network messages handler
+    let mut message_handler = MessageHandler {
+        mempool: mempool_ref.clone(),
+        store: storage.clone(),
+        network_data_receiver: from_network_receiver,
+        network_responder: responder_task_sender.clone()
+    };
+
+    //setup p2p layer
+    let mut network = NetworkNode::new(
+        is_first_node,
+        from_network_sender,
+        to_network_receiver,
+        terminate_receiver,
+    );
+
+    //setup wallet task and miscellaneous task executor
+    let (mut wallet_manager, wallet_manager_sender) = WalletManager::new(mempool_ref.clone(), storage.clone(), MessageWrapper::new(to_network_sender.clone()));
+    let (mut executor, executor_sender) = Executor::new(mempool_ref.clone(), storage.clone(), MessageWrapper::new(to_network_sender.clone()));
     
     //setup telnet listener
     let node_unique_number = matches.value_of("number").unwrap_or("0").parse::<u32>().expect("Node number is incorrect");
     let input_listener = InputListener::new(node_unique_number, executor_sender, wallet_manager_sender, terminate_sender);
 
     //launch services in different threads
-    let input_listener_thread = thread::spawn(move || input_listener.run() );
-    let executor_thread = thread::spawn(move || executor.run() );
-    let wallet_manager_thread = thread::spawn(move || wallet_manager.run() );    
-    let message_handler_thread = thread::spawn(move || message_handler.run() );
+    let input_listener_thread = thread::spawn( move || input_listener.run() );
+    let responder_thread = thread::spawn( move || responder.run() );
+    let executor_thread = thread::spawn( move || executor.run() );
+    let wallet_manager_thread = thread::spawn( move || wallet_manager.run() );    
+    let message_handler_thread = thread::spawn( move || message_handler.run() );
 
     //prepare to handle Ctrl-C
     ctrlc::set_handler(move || {
@@ -101,9 +128,10 @@ fn main() {
     }).expect("Error setting Ctrl-C handler");
 
     network.run();  //main thread loop
-    drop(network);  //remove everything after network loop was somehow interrupted
+    drop(network);  //remove everything after network loop was finished
 
     //wait for other threads to finish
+    responder_thread.join().unwrap();
     executor_thread.join().unwrap();   
     wallet_manager_thread.join().unwrap();
     input_listener_thread.join().unwrap();

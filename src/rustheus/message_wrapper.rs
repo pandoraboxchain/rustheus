@@ -20,7 +20,7 @@ impl MessageWrapper
         }
     }
 
-    pub fn wrap<T>(&self, payload: &T) where T: Payload
+    pub fn wrap<T>(&self, payload: &T) where T: Payload //TODO use moving here instead of borrowing
     {
         let info = NETWORK_INFO;
 		let message = Message::with_flags(info.magic, info.version, payload, SERIALIZE_TRANSACTION_WITNESS).expect("failed to create outgoing message");

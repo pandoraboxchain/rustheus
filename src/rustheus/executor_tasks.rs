@@ -5,5 +5,6 @@ use primitives::hash::H256;
 pub enum Task
 {
 	SignBlock(Address),
-	GetTransactionMeta(H256)
+	GetTransactionMeta(H256),
+	RequestLatestBlocks()
 }

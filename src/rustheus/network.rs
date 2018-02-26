@@ -9,6 +9,8 @@ use std::sync::mpsc::{self, Sender, Receiver, TryRecvError};
 use chain::bytes::Bytes;
 use std::thread;
 
+pub type PeerIndex = XorName;
+
 /// A simple example node implementation for a network based on the Routing library.
 pub struct NetworkNode {
     /// The node interface to the Routing library.
@@ -17,21 +19,21 @@ pub struct NetworkNode {
     client_accounts: HashMap<XorName, u64>,
     request_cache: LruCache<MessageId, (Authority<XorName>, Authority<XorName>)>,
 
-    received_bytes_listener: Sender<Bytes>,
+    from_network_sender: Sender<Bytes>,
     
-    bytes_to_send_rx: Receiver<Bytes>,
-    terminate_listener_rx: Receiver<bool>, 
+    to_network_receiver: Receiver<Bytes>,
+    terminate_receiver: Receiver<bool>, 
 }
 
 impl NetworkNode {
     /// Creates a new node and attempts to establish a connection to the network.
-    pub fn new(first: bool, received_bytes_listener: Sender<Bytes>) -> (Self, Sender<Bytes>, Sender<bool>)  {
+    pub fn new(first: bool,
+        from_network_sender: Sender<Bytes>,
+        to_network_receiver: Receiver<Bytes>,
+        terminate_receiver: Receiver<bool>) -> Self {
         let dev_config = DevConfig { allow_multiple_lan_nodes: true, ..Default::default() };
         let config = Config { dev: Some(dev_config) };
         let node = unwrap!(Node::builder().first(first).config(config).create());
-
-        let (bytes_to_send_tx, bytes_to_send_rx) = mpsc::channel();
-        let (terminate_listener_tx, terminate_listener_rx) = mpsc::channel();
 
         let network = NetworkNode {
             node: node,
@@ -39,13 +41,12 @@ impl NetworkNode {
             client_accounts: HashMap::new(),
             request_cache: LruCache::with_expiry_duration(Duration::from_secs(60 * 10)),
 
-            received_bytes_listener,   
-            
-            bytes_to_send_rx,
-            terminate_listener_rx,
+            from_network_sender,  
+            to_network_receiver,
+            terminate_receiver,
         };
 
-        (network, bytes_to_send_tx, terminate_listener_tx)
+        network
     }
 
     pub fn run(&mut self)
@@ -53,7 +54,7 @@ impl NetworkNode {
         let mut disconnected = false;
         while !disconnected
         {
-            if let Ok(bytes_to_send) = self.bytes_to_send_rx.try_recv()
+            if let Ok(bytes_to_send) = self.to_network_receiver.try_recv()
             {
                 self.send_a_message(&bytes_to_send.take());
             }
@@ -63,7 +64,7 @@ impl NetworkNode {
                 Err(error) => if error == TryRecvError::Disconnected { disconnected = true }
             }
 
-            if let Ok(_) = self.terminate_listener_rx.try_recv()
+            if let Ok(_) = self.terminate_receiver.try_recv()
             {
                 disconnected = true;
             }
@@ -328,7 +329,7 @@ impl NetworkNode {
 
     fn handle_message(&mut self, data: &Vec<u8>)
     {
-        self.received_bytes_listener.send(data.clone().into()).unwrap();
+        self.from_network_sender.send(data.clone().into()).unwrap();
     }
 
     fn send_a_message(&mut self, message: &Vec<u8>)

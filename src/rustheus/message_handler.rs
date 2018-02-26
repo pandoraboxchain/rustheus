@@ -12,24 +12,27 @@ use script::{verify_script, TransactionInputSigner, SignatureVersion, Transactio
 use script::{ScriptWitness, VerificationFlags};
 use script::Error as ScriptError;
 use chain::Transaction;
+use responder::ResponderTask;
 
 pub struct MessageHandler
 {
-    mempool: MempoolRef,
-    network_data_receiver: Receiver<Bytes>,
-    store: SharedStore
+    pub mempool: MempoolRef,
+    pub network_data_receiver: Receiver<Bytes>,
+    pub store: SharedStore,
+    pub network_responder: Sender<ResponderTask>
 }
 
 impl MessageHandler
 {
-    pub fn new(mempool: MempoolRef, store: SharedStore) -> (Self, Sender<Bytes>)
+    pub fn new(mempool: MempoolRef, store: SharedStore, network_responder: Sender<ResponderTask>) -> (Self, Sender<Bytes>)
     {
         let (network_data_sender, network_data_receiver) = mpsc::channel();
 
         let message_handler = MessageHandler {
                     mempool,
                     network_data_receiver,
-                    store
+                    store,
+                    network_responder
         };
         (message_handler, network_data_sender)
     }
@@ -78,16 +81,20 @@ impl MessageHandler
         let transactions = block.transactions.clone();
         match self.store.insert(block.into()) {
             Ok(_) => match self.store.canonize(&hash) {
-                    Ok(_) => {
-                        info!("Block inserted and canonized with hash {}", hash);
-                        let mut mempool = self.mempool.write().unwrap();
-                        mempool.remove_transactions(transactions);
-                    },
-                    Err(err) => error!("Cannot canonize received block due to {:?}", err)
-                }
+                Ok(_) => {
+                    info!("Block inserted and canonized with hash {}", hash);
+                    let mut mempool = self.mempool.write().unwrap();
+                    mempool.remove_transactions(transactions);
+                },
+                Err(err) => error!("Cannot canonize received block due to {:?}", err)
+            }
             Err(err) => error!("Cannot insert received block due to {:?}", err)
         }
+    }
 
+    fn on_get_blocks(&self, message: types::GetBlocks)
+    {
+        
     }
 
     fn on_message(&self, header: MessageHeader, payload: &[u8]) -> Result<(), Error>
@@ -106,6 +113,11 @@ impl MessageHandler
         {
             let message: types::Block = try!(deserialize_payload(payload, 0));
 			self.on_block(message);
+        }
+        else if header.command == types::GetBlocks::command()
+        {
+            let message: types::GetBlocks = try!(deserialize_payload(payload, 0));
+			self.on_get_blocks(message);
         }
         Ok(())
     }
