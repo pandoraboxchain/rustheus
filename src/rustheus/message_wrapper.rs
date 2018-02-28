@@ -4,15 +4,17 @@ use chain::bytes::Bytes;
 use params::info::NETWORK_INFO;
 use ser::SERIALIZE_TRANSACTION_WITNESS;
 use message::Message;
+use network::PeerAndBytes;
+use routing::XorName;
 
 pub struct MessageWrapper
 {
-    network_channel: Sender<Bytes>
+    network_channel: Sender<PeerAndBytes>
 }
 
 impl MessageWrapper
 {
-    pub fn new(network_channel: Sender<Bytes>) -> Self
+    pub fn new(network_channel: Sender<PeerAndBytes>) -> Self
     {
         MessageWrapper
         {
@@ -24,6 +26,7 @@ impl MessageWrapper
     {
         let info = NETWORK_INFO;
 		let message = Message::with_flags(info.magic, info.version, payload, SERIALIZE_TRANSACTION_WITNESS).expect("failed to create outgoing message");
-        self.network_channel.send(message.as_ref().into()).unwrap();
+        let peer_and_bytes = PeerAndBytes { peer: XorName::default(), bytes: message.as_ref().into() };
+        self.network_channel.send(peer_and_bytes).unwrap();
     }
 }

@@ -31,11 +31,10 @@ use std::sync::mpsc;
 
 mod mempool; use mempool::Mempool;
 mod network; use network::NetworkNode;
-mod executor; use executor::Executor;
+mod executor; use executor::Executor; use executor::ExecutorTask;
 mod input_listener; use input_listener::InputListener;
 mod message_wrapper; use message_wrapper::MessageWrapper;
 mod message_handler; use message_handler::MessageHandler;
-mod executor_tasks;
 mod service; use service::Service;
 mod db_utils;
 mod wallet_manager; mod wallet_manager_tasks; use wallet_manager::WalletManager;
@@ -83,7 +82,7 @@ fn main() {
     let (terminate_sender, terminate_receiver) = mpsc::channel();
 
     //setup network requests responder
-    let mut responder = Responder {
+    let responder = Responder {
         storage: storage.clone(),
         task_receiver: responder_task_receiver,
         message_wrapper: MessageWrapper::new(to_network_sender.clone())

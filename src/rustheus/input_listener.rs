@@ -2,25 +2,23 @@ use shrust::{Shell, ShellIO, ExecError};
 use std::net::TcpListener;
 use std::sync::mpsc::Sender;
 use std::str::FromStr;
-use executor_tasks::Task;
+use executor::ExecutorTask;
 use keys::{Private, Address};
 use wallet_manager_tasks::Task as WalletTask;
 use primitives::hash::H256;
 
 //TODO please find a way to do this better. This tuple is needed to access senders from command closures
-type Senders = (Sender<Task>, Sender<WalletTask>, Sender<bool>);
+type Senders = (Sender<ExecutorTask>, Sender<WalletTask>, Sender<bool>);
 
 pub struct InputListener
 {
-    //shell: Shell<Sender<Task>>,
-    //executor: Sender<Task>
     node_number: u32,
     shell: Shell<Senders>
 }
 
 impl InputListener
 {
-    pub fn new(node_number: u32, executor: Sender<Task>,
+    pub fn new(node_number: u32, executor: Sender<ExecutorTask>,
                                  wallet_manager: Sender<WalletTask>,
                                  terminator: Sender<bool>) -> Self
     {
@@ -28,7 +26,7 @@ impl InputListener
         InputListener { node_number, shell }
     }
 
-    fn create_shell(executor: Sender<Task>,
+    fn create_shell(executor: Sender<ExecutorTask>,
                     wallet_manager: Sender<WalletTask>,
                     terminator: Sender<bool>) -> Shell<Senders>
     {    
@@ -40,7 +38,7 @@ impl InputListener
             let ref executor = senders.0;
             match Address::from_str(args[0])
             {
-                Ok(coinbase_recipient) => executor.send(Task::SignBlock(coinbase_recipient))?,
+                Ok(coinbase_recipient) => executor.send(ExecutorTask::SignBlock(coinbase_recipient))?,
                 Err(err) => error!("Can't parse address: {}", err),
             }            
             Ok(())
@@ -109,7 +107,7 @@ impl InputListener
             match H256::from_str(args[0])
             {
                 Ok(hash) => {
-                    executor.send(Task::GetTransactionMeta(hash))?;
+                    executor.send(ExecutorTask::GetTransactionMeta(hash))?;
                     Ok(())
                 },
                 Err(err) => {

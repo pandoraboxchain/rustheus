@@ -11,6 +11,12 @@ use std::thread;
 
 pub type PeerIndex = XorName;
 
+pub struct PeerAndBytes
+{
+    pub peer: PeerIndex,
+    pub bytes: Bytes
+}
+
 /// A simple example node implementation for a network based on the Routing library.
 pub struct NetworkNode {
     /// The node interface to the Routing library.
@@ -19,17 +25,19 @@ pub struct NetworkNode {
     client_accounts: HashMap<XorName, u64>,
     request_cache: LruCache<MessageId, (Authority<XorName>, Authority<XorName>)>,
 
-    from_network_sender: Sender<Bytes>,
+    from_network_sender: Sender<PeerAndBytes>,
     
-    to_network_receiver: Receiver<Bytes>,
+    to_network_receiver: Receiver<PeerAndBytes>,
     terminate_receiver: Receiver<bool>, 
+
+    on_connected: Option<Box<Fn()>>,
 }
 
 impl NetworkNode {
     /// Creates a new node and attempts to establish a connection to the network.
     pub fn new(first: bool,
-        from_network_sender: Sender<Bytes>,
-        to_network_receiver: Receiver<Bytes>,
+        from_network_sender: Sender<PeerAndBytes>,
+        to_network_receiver: Receiver<PeerAndBytes>,
         terminate_receiver: Receiver<bool>) -> Self {
         let dev_config = DevConfig { allow_multiple_lan_nodes: true, ..Default::default() };
         let config = Config { dev: Some(dev_config) };
@@ -44,6 +52,7 @@ impl NetworkNode {
             from_network_sender,  
             to_network_receiver,
             terminate_receiver,
+            on_connected: None,
         };
 
         network
@@ -54,9 +63,16 @@ impl NetworkNode {
         let mut disconnected = false;
         while !disconnected
         {
-            if let Ok(bytes_to_send) = self.to_network_receiver.try_recv()
+            if let Ok(message_to_send) = self.to_network_receiver.try_recv()
             {
-                self.send_a_message(&bytes_to_send.take());
+                if message_to_send.peer == XorName::default()
+                {
+                    self.broadcast_message(&message_to_send.bytes.take());
+                }
+                else
+                {
+                    self.send_message(message_to_send.peer, &message_to_send.bytes.take());
+                }
             }
 
             match self.node.try_next_ev() {
@@ -96,6 +112,10 @@ impl NetworkNode {
             }
             Event::Connected => {
                 info!("{} Received connected event", self.get_debug_name());
+                if let Some(ref on_connected) = self.on_connected
+                {
+                    on_connected();
+                }
             }
             Event::Terminate => {
                 info!("{} Received Terminate event", self.get_debug_name());
@@ -231,9 +251,9 @@ impl NetworkNode {
                     data.name()
                 );
                 if self.request_cache.insert(msg_id, (dst, src)).is_none() {
+                    self.handle_message(src.name(), data.value());
                     let src = dst;
                     let dst = Authority::NaeManager(*data.name());
-                    self.handle_message(data.value());
                     unwrap!(self.node.send_put_idata_request(src, dst, data, msg_id));
                 } else {
                     warn!("Attempt to reuse message ID {:?}.", msg_id);
@@ -327,12 +347,13 @@ impl NetworkNode {
         }
     }
 
-    fn handle_message(&mut self, data: &Vec<u8>)
+    fn handle_message(&mut self, peer: PeerIndex, data: &Vec<u8>)
     {
-        self.from_network_sender.send(data.clone().into()).unwrap();
+        let peer_and_bytes = PeerAndBytes { peer, bytes: data.clone().into() };
+        self.from_network_sender.send(peer_and_bytes).unwrap();
     }
 
-    fn send_a_message(&mut self, message: &Vec<u8>)
+    fn broadcast_message(&mut self, message: &Vec<u8>)
     {
         let node_name = *unwrap!(self.node.id()).name();
         let src = Authority::ManagedNode(node_name);
@@ -345,6 +366,25 @@ impl NetworkNode {
             MessageId::new()
         ));
     }
+
+    fn send_message(&mut self, peer_name: PeerIndex, message: &Vec<u8>)
+    {
+        let our_name = *unwrap!(self.node.id()).name();
+        let src = Authority::ManagedNode(our_name);
+        let dst = Authority::ManagedNode(peer_name);
+
+        unwrap!(self.node.send_put_idata_request(
+            src,
+            dst, 
+            ImmutableData::new(message.clone()),
+            MessageId::new()
+        ));
+    }
+
+    pub fn set_on_connect_handler<CB: 'static + Fn()>(&mut self, c: CB) {
+        self.on_connected = Some(Box::new(c));
+    }
+
 }
 
 /// Refresh messages.

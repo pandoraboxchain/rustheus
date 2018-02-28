@@ -2,6 +2,7 @@ use std::sync::mpsc::{self, Sender, Receiver};
 use chain::bytes::Bytes;
 use message::MessageHeader;
 use message::{Error, Payload, types, deserialize_payload};
+use message::common::{InventoryType, InventoryVector};
 
 use params::info::NETWORK_INFO;
 use service::Service;
@@ -13,28 +14,28 @@ use script::{ScriptWitness, VerificationFlags};
 use script::Error as ScriptError;
 use chain::Transaction;
 use responder::ResponderTask;
+use network::{PeerAndBytes, PeerIndex};
 
 pub struct MessageHandler
 {
     pub mempool: MempoolRef,
-    pub network_data_receiver: Receiver<Bytes>,
+    pub network_data_receiver: Receiver<PeerAndBytes>,
     pub store: SharedStore,
     pub network_responder: Sender<ResponderTask>
 }
 
 impl MessageHandler
 {
-    pub fn new(mempool: MempoolRef, store: SharedStore, network_responder: Sender<ResponderTask>) -> (Self, Sender<Bytes>)
+    pub fn new(mempool: MempoolRef, store: SharedStore, network_responder: Sender<ResponderTask>) -> Self
     {
         let (network_data_sender, network_data_receiver) = mpsc::channel();
 
-        let message_handler = MessageHandler {
-                    mempool,
-                    network_data_receiver,
-                    store,
-                    network_responder
-        };
-        (message_handler, network_data_sender)
+        MessageHandler {
+            mempool,
+            network_data_receiver,
+            store,
+            network_responder
+        }
     }
 
     //TODO move it to appropriate file
@@ -92,12 +93,44 @@ impl MessageHandler
         }
     }
 
-    fn on_get_blocks(&self, message: types::GetBlocks)
+    fn on_get_blocks(&self, peer: PeerIndex, message: types::GetBlocks)
     {
-        
+        self.network_responder.send(ResponderTask::GetBlocks(peer, message)).unwrap();
     }
 
-    fn on_message(&self, header: MessageHeader, payload: &[u8]) -> Result<(), Error>
+    fn on_inv(&self, peer_index: PeerIndex, message: types::Inv)
+    {
+		let unknown_inventory: Vec<_> = message.inventory.into_iter()
+			.filter(|item| {
+				match item.inv_type {
+					// check that transaction is unknown to us
+					InventoryType::MessageTx => self.store.transaction(&item.hash).is_none(),
+					InventoryType::MessageBlock => self.store.block_number(&item.hash).is_none(),   //check is block is known
+					// we never ask for merkle blocks && we never ask for compact blocks
+					InventoryType::MessageCompactBlock | InventoryType::MessageFilteredBlock
+						| InventoryType::MessageWitnessBlock | InventoryType::MessageWitnessFilteredBlock
+						| InventoryType::MessageWitnessTx => false,
+					// unknown inventory type
+					InventoryType::Error => {
+						error!("Provided unknown inventory type {:?}", item.hash);
+						false
+					}
+				}
+			})
+			.collect();
+
+		// if everything is known => ignore this message
+		if unknown_inventory.is_empty() {
+			trace!(target: "sync", "Ignoring inventory message from peer#{} as all items are known", peer_index);
+			return;
+		}
+
+		// ask for unknown items
+		let message = types::GetData::with_inventory(unknown_inventory);
+        self.network_responder.send(ResponderTask::GetData(peer_index, message)).unwrap();
+    }
+
+    fn on_message(&self, peer: PeerIndex, header: MessageHeader, payload: &[u8]) -> Result<(), Error>
     {
         if checksum(&payload) != header.checksum 
         {
@@ -117,7 +150,12 @@ impl MessageHandler
         else if header.command == types::GetBlocks::command()
         {
             let message: types::GetBlocks = try!(deserialize_payload(payload, 0));
-			self.on_get_blocks(message);
+			self.on_get_blocks(peer, message);
+        }
+        else if header.command == types::Inv::command()
+        {
+            let message: types::Inv = try!(deserialize_payload(payload, 0));
+			self.on_inv(peer, message);
         }
         Ok(())
     }
@@ -125,14 +163,16 @@ impl MessageHandler
 
 impl Service for MessageHandler
 {
-    type Item = Bytes;
+    type Item = PeerAndBytes;
 
     fn run(&mut self)
     {
         loop
         {
-            if let Ok(bytes) = self.network_data_receiver.recv()
+            if let Ok(peer_and_bytes) = self.network_data_receiver.recv()
             {
+                let bytes = peer_and_bytes.bytes;
+                let peer = peer_and_bytes.peer;
                 //TODO check boundaries
                 let data_start = 24;
                 let info = NETWORK_INFO;
@@ -141,7 +181,7 @@ impl Service for MessageHandler
                     Ok(header) => {
                         let data_end = data_start + header.len as usize;
                         let data = &bytes[ data_start..data_end ];
-                        if let Err(err) = self.on_message(header, data)
+                        if let Err(err) = self.on_message(peer, header, data)
                         {
                             error!("Unable to deserialize received message body. Reason: {:?}", err)
                         }

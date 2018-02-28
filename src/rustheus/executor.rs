@@ -3,7 +3,6 @@ use crypto::DHash256;
 use std::sync::mpsc::{self, Sender, Receiver};
 use mempool::{MempoolRef};
 use std::time::{SystemTime, UNIX_EPOCH};
-use executor_tasks::Task;
 use message::types::{Block as BlockMessage, GetBlocks};
 use message_wrapper::MessageWrapper;
 use db::SharedStore;
@@ -13,9 +12,17 @@ use primitives::hash::H256;
 
 type BlockHeight = u32;
 
+#[derive(Debug, PartialEq)]
+pub enum ExecutorTask
+{
+	SignBlock(Address),
+	GetTransactionMeta(H256),
+	RequestLatestBlocks()
+}
+
 pub struct Executor
 {
-    task_receiver: Receiver<Task>,
+    task_receiver: Receiver<ExecutorTask>,
     message_wrapper: MessageWrapper,
     mempool: MempoolRef,
     storage: SharedStore
@@ -23,7 +30,7 @@ pub struct Executor
 
 impl Executor
 {
-    pub fn new(mempool: MempoolRef, storage: SharedStore, message_wrapper: MessageWrapper) -> (Self, Sender<Task>)
+    pub fn new(mempool: MempoolRef, storage: SharedStore, message_wrapper: MessageWrapper) -> (Self, Sender<ExecutorTask>)
     {
         let (task_sender, task_receiver) = mpsc::channel();
         let executor = Executor
@@ -45,9 +52,9 @@ impl Executor
                 info!("task received, it is {:?}", task);
                 match task
                 {
-                    Task::SignBlock(coinbase_recipient) => self.sign_block(coinbase_recipient),
-                    Task::GetTransactionMeta(hash) => self.get_transaction_meta(hash),         
-                    Task::RequestLatestBlocks() => self.request_latest_blocks(),  
+                    ExecutorTask::SignBlock(coinbase_recipient) => self.sign_block(coinbase_recipient),
+                    ExecutorTask::GetTransactionMeta(hash) => self.get_transaction_meta(hash),         
+                    ExecutorTask::RequestLatestBlocks() => self.request_latest_blocks(),  
                 }
             }
             else

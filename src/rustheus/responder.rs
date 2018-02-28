@@ -10,6 +10,7 @@ type BlockHeight = u32;
 #[derive(Debug, PartialEq)]
 pub enum ResponderTask {
 	GetBlocks(PeerIndex, types::GetBlocks),
+	GetData(PeerIndex, types::GetData),
 }
 
 pub struct Responder {
@@ -37,6 +38,7 @@ impl Responder {
                 Ok(task) => {
                     match task {
                         ResponderTask::GetBlocks(peer_index, message) => self.respond_get_blocks(peer_index, message),
+                        ResponderTask::GetData(peer_index, message) => self.respond_get_data(peer_index, message),
                     }
                 }
             }
@@ -66,6 +68,23 @@ impl Responder {
             return;
         }
     }
+
+	fn respond_get_data(&self, peer_index: PeerIndex, message: types::GetData) {
+        for next_item in message.inventory.iter().rev() {
+            match next_item.inv_type {
+                common::InventoryType::MessageBlock => {
+                    if let Some(block) = self.storage.block(next_item.hash.clone().into()) {
+                        trace!(target: "sync", "'getblocks' response to peer#{} is ready with block {}", peer_index, next_item.hash.to_reversed_str());
+                        let block = types::Block::with_block(block);
+                        self.message_wrapper.wrap(&block);
+                    } else {
+                        info!("peer {} is asking for non existant block {}", peer_index, next_item.hash);
+                    }
+                },
+                _ => error!("getdata message contains unhandled inventory type {:?}", next_item.inv_type)
+		    }
+        }
+	}
 
     fn locate_best_common_block(&self, hash_stop: &H256, locator: &[H256]) -> Option<BlockHeight> {
 		for block_hash in locator.iter().chain(&[hash_stop.clone()]) {
