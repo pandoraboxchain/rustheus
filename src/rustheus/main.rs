@@ -92,7 +92,8 @@ fn main() {
         mempool: mempool_ref.clone(),
         store: storage.clone(),
         network_data_receiver: from_network_receiver,
-        network_responder: responder_task_sender.clone()
+        network_responder: responder_task_sender.clone(),
+        message_wrapper: MessageWrapper::new(to_network_sender.clone())
     };
 
     //setup p2p layer
@@ -109,7 +110,7 @@ fn main() {
     
     //setup telnet listener
     let node_unique_number = matches.value_of("number").unwrap_or("0").parse::<u32>().expect("Node number is incorrect");
-    let input_listener = InputListener::new(node_unique_number, executor_sender, wallet_manager_sender, terminate_sender);
+    let input_listener = InputListener::new(node_unique_number, executor_sender.clone(), wallet_manager_sender, terminate_sender);
 
     //launch services in different threads
     let input_listener_thread = thread::spawn( move || input_listener.run() );
@@ -125,6 +126,10 @@ fn main() {
         //TODO send interrupt to input_listener and network_node, so we can exit properly even without `shutdown` command
         //interrupt_sender.send(true).expect("Could not exit properly. Blockchain latest state may be not saved");
     }).expect("Error setting Ctrl-C handler");
+
+    network.set_on_connect_handler(move || {
+        executor_sender.send(ExecutorTask::RequestLatestBlocks()).unwrap();
+    });
 
     network.run();  //main thread loop
     drop(network);  //remove everything after network loop was finished

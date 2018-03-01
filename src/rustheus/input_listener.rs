@@ -116,6 +116,20 @@ impl InputListener
                 }
             }
         });
+        shell.new_command("blockhash", "Get block hash at height for debug", 1, |_, senders, args|
+        {
+            let ref executor = senders.0;
+            match args[0].parse::<u32>() {
+                Ok(block_height) => {
+                    executor.send(ExecutorTask::GetBlockHash(block_height))?;
+                    Ok(())
+                },
+                Err(err) => {
+                    error!("Can't parse block height: {}", err);
+                    Ok(())
+                }
+            }
+        });
 
         shell
     }

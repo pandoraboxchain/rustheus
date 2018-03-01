@@ -15,29 +15,19 @@ use script::Error as ScriptError;
 use chain::Transaction;
 use responder::ResponderTask;
 use network::{PeerAndBytes, PeerIndex};
+use message_wrapper::MessageWrapper;
 
 pub struct MessageHandler
 {
     pub mempool: MempoolRef,
     pub network_data_receiver: Receiver<PeerAndBytes>,
     pub store: SharedStore,
-    pub network_responder: Sender<ResponderTask>
+    pub network_responder: Sender<ResponderTask>,
+    pub message_wrapper: MessageWrapper,
 }
 
 impl MessageHandler
 {
-    pub fn new(mempool: MempoolRef, store: SharedStore, network_responder: Sender<ResponderTask>) -> Self
-    {
-        let (network_data_sender, network_data_receiver) = mpsc::channel();
-
-        MessageHandler {
-            mempool,
-            network_data_receiver,
-            store,
-            network_responder
-        }
-    }
-
     //TODO move it to appropriate file
     //TODO make it check not only [0] input
     fn verify_transaction(&self, transaction: &Transaction) -> Result<(), ScriptError>
@@ -93,11 +83,6 @@ impl MessageHandler
         }
     }
 
-    fn on_get_blocks(&self, peer: PeerIndex, message: types::GetBlocks)
-    {
-        self.network_responder.send(ResponderTask::GetBlocks(peer, message)).unwrap();
-    }
-
     fn on_inv(&self, peer_index: PeerIndex, message: types::Inv)
     {
 		let unknown_inventory: Vec<_> = message.inventory.into_iter()
@@ -124,10 +109,23 @@ impl MessageHandler
 			trace!(target: "sync", "Ignoring inventory message from peer#{} as all items are known", peer_index);
 			return;
 		}
+        
+        trace!(target: "handler", "unknown items are {:?}", unknown_inventory);
 
 		// ask for unknown items
 		let message = types::GetData::with_inventory(unknown_inventory);
-        self.network_responder.send(ResponderTask::GetData(peer_index, message)).unwrap();
+        self.message_wrapper.wrap(&message);
+    }
+
+    //TODO maybe move following methods to separate handler
+    fn on_get_blocks(&self, peer: PeerIndex, message: types::GetBlocks)
+    {
+        self.network_responder.send(ResponderTask::GetBlocks(peer, message)).unwrap();
+    }
+
+    fn on_get_data(&self, peer: PeerIndex, message: types::GetData)
+    {
+        self.network_responder.send(ResponderTask::GetData(peer, message)).unwrap();
     }
 
     fn on_message(&self, peer: PeerIndex, header: MessageHeader, payload: &[u8]) -> Result<(), Error>
@@ -140,22 +138,32 @@ impl MessageHandler
         if header.command == types::Tx::command()
         {
 			let message: types::Tx = try!(deserialize_payload(payload, 0));
+            trace!(target: "handler", "received tx {:?}", message);
 			self.on_transaction(message);
 		}
         else if header.command == types::Block::command()
         {
             let message: types::Block = try!(deserialize_payload(payload, 0));
+            trace!(target: "handler", "received block {:?}", message);            
 			self.on_block(message);
         }
         else if header.command == types::GetBlocks::command()
         {
             let message: types::GetBlocks = try!(deserialize_payload(payload, 0));
+            trace!(target: "handler", "received getblocks {:?}", message);            
 			self.on_get_blocks(peer, message);
         }
         else if header.command == types::Inv::command()
         {
             let message: types::Inv = try!(deserialize_payload(payload, 0));
+            trace!(target: "handler", "received inv {:?}", message);            
 			self.on_inv(peer, message);
+        }
+        else if header.command == types::GetData::command()
+        {
+            let message: types::GetData = try!(deserialize_payload(payload, 0));
+            trace!(target: "handler", "received getdata {:?}", message);            
+			self.on_get_data(peer, message);
         }
         Ok(())
     }

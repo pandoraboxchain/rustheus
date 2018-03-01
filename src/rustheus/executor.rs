@@ -16,8 +16,11 @@ type BlockHeight = u32;
 pub enum ExecutorTask
 {
 	SignBlock(Address),
-	GetTransactionMeta(H256),
-	RequestLatestBlocks()
+	RequestLatestBlocks(),
+
+	//debug and explore
+    GetTransactionMeta(H256),
+    GetBlockHash(u32),
 }
 
 pub struct Executor
@@ -54,6 +57,7 @@ impl Executor
                 {
                     ExecutorTask::SignBlock(coinbase_recipient) => self.sign_block(coinbase_recipient),
                     ExecutorTask::GetTransactionMeta(hash) => self.get_transaction_meta(hash),         
+                    ExecutorTask::GetBlockHash(height) => self.get_block_hash(height),         
                     ExecutorTask::RequestLatestBlocks() => self.request_latest_blocks(),  
                 }
             }
@@ -112,8 +116,18 @@ impl Executor
         }
     }
 
+    fn get_block_hash(&self, height: u32)
+    {
+        match self.storage.block_hash(height)
+        {
+            Some(hash) => debug!("Block hash is {:?}", hash),
+            None => error!("No block at this height")
+        }
+    }
+
     fn request_latest_blocks(&self)
     {
+        info!("Requesting latest blocks from network");
         let index = self.storage.best_block().number;
 		let step = 1u32;
         let block_locator_hashes = self.block_locator_hashes_for_storage(index, step);

@@ -116,6 +116,10 @@ impl NetworkNode {
                 {
                     on_connected();
                 }
+                if self.on_connected.is_some()  //TODO less hackish way to unset listener
+                {
+                    self.on_connected = None;
+                }
             }
             Event::Terminate => {
                 info!("{} Received Terminate event", self.get_debug_name());
