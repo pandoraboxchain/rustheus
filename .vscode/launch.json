@@ -12,7 +12,7 @@
             "terminal": "integrated",
             "sourceLanguages": ["rust"],
             "env": {
-                "RUST_LOG":"debug,info,error"
+                "RUST_LOG":"debug,handler=trace"
             }
         }
     ]

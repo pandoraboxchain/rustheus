@@ -256,9 +256,7 @@ impl NetworkNode {
                 );
                 if self.request_cache.insert(msg_id, (dst, src)).is_none() {
                     self.handle_message(src.name(), data.value());
-                    let src = dst;
-                    let dst = Authority::NaeManager(*data.name());
-                    unwrap!(self.node.send_put_idata_request(src, dst, data, msg_id));
+                    
                 } else {
                     warn!("Attempt to reuse message ID {:?}.", msg_id);
                     unwrap!(self.node.send_put_idata_response(

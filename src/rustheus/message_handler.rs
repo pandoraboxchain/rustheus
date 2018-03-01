@@ -50,8 +50,6 @@ impl MessageHandler
     //TODO check inputs other than [0]
     fn on_transaction(&self, message: types::Tx)
     {
-        info!("received transaction message {:?}", message);
-
         let verification_result = self.verify_transaction(&message.transaction);
 
         match verification_result
