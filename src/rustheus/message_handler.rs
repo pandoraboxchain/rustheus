@@ -1,8 +1,7 @@
-use std::sync::mpsc::{self, Sender, Receiver};
-use chain::bytes::Bytes;
+use std::sync::mpsc::{Sender, Receiver};
 use message::MessageHeader;
 use message::{Error, Payload, types, deserialize_payload};
-use message::common::{InventoryType, InventoryVector};
+use message::common::InventoryType;
 
 use params::info::NETWORK_INFO;
 use service::Service;
@@ -114,7 +113,7 @@ impl MessageHandler
 
 		// ask for unknown items
 		let message = types::GetData::with_inventory(unknown_inventory);
-        self.message_wrapper.wrap(&message);
+        self.message_wrapper.send(peer_index, &message);
     }
 
     //TODO maybe move following methods to separate handler

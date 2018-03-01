@@ -90,7 +90,7 @@ impl Executor
         block.block_header.merkle_root_hash = block.witness_merkle_root();
 
         let block_message = BlockMessage { block };
-        self.message_wrapper.wrap(&block_message);
+        self.message_wrapper.broadcast(&block_message);
     }
 
     fn create_coinbase(&self, recipient: Address) -> Transaction
@@ -132,7 +132,7 @@ impl Executor
 		let step = 1u32;
         let block_locator_hashes = self.block_locator_hashes_for_storage(index, step);
         let get_blocks_msg = GetBlocks::with_block_locator_hashes(block_locator_hashes);
-        self.message_wrapper.wrap(&get_blocks_msg);
+        self.message_wrapper.broadcast(&get_blocks_msg);
     }
 
     /// Calculate block locator hashes for storage

@@ -144,7 +144,7 @@ impl WalletManager
         };
 
         let tx = Tx { transaction: signed_transaction.clone() };
-        self.wrapper.wrap(&tx);
+        self.wrapper.broadcast(&tx);
         
         let mut mempool = self.mempool.write().unwrap();
         mempool.insert(signed_transaction);

@@ -1,7 +1,7 @@
 use network::PeerIndex;
 use db::SharedStore;
 use message::{types, common};
-use std::sync::mpsc::{self, Sender, Receiver};
+use std::sync::mpsc::Receiver;
 use primitives::hash::H256;
 use message_wrapper::MessageWrapper;
 
@@ -20,17 +20,6 @@ pub struct Responder {
 }
 
 impl Responder {
-    pub fn new(storage: SharedStore, message_wrapper: MessageWrapper) -> (Self, Sender<ResponderTask>) {
-        let (task_sender, task_receiver) = mpsc::channel();
-
-        let responder = Responder {
-            task_receiver,
-            storage,
-            message_wrapper
-        };
-        (responder, task_sender)
-    } 
-
     pub fn run(&self) {
         loop {
             match self.task_receiver.recv() {
@@ -58,7 +47,7 @@ impl Responder {
             if !inventory.is_empty() {
                 trace!(target: "sync", "'getblocks' response to peer#{} is ready with {} hashes", peer_index, inventory.len());
                 let inventory_msg = types::Inv::with_inventory(inventory);
-                self.message_wrapper.wrap(&inventory_msg);
+                self.message_wrapper.send(peer_index, &inventory_msg);
                 //self.executor.execute(Task::Inventory(peer_index, types::Inv::with_inventory(inventory)));
             } else {
                 trace!(target: "sync", "'getblocks' request from peer#{} is ignored as there are no new blocks for peer", peer_index);
@@ -76,7 +65,7 @@ impl Responder {
                     if let Some(block) = self.storage.block(next_item.hash.clone().into()) {
                         trace!(target: "sync", "'getblocks' response to peer#{} is ready with block {}", peer_index, next_item.hash.to_reversed_str());
                         let block = types::Block::with_block(block);
-                        self.message_wrapper.wrap(&block);
+                        self.message_wrapper.send(peer_index, &block);
                     } else {
                         info!("peer {} is asking for non existant block {}", peer_index, next_item.hash);
                     }

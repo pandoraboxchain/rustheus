@@ -5,7 +5,7 @@ use routing::{Authority, ClientError, Event, EventStream, ImmutableData,
               Config, DevConfig, XorName};
 use std::collections::HashMap;
 use std::time::Duration;
-use std::sync::mpsc::{self, Sender, Receiver, TryRecvError};
+use std::sync::mpsc::{Sender, Receiver, TryRecvError};
 use chain::bytes::Bytes;
 use std::thread;
 
