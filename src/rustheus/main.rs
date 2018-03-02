@@ -1,25 +1,28 @@
-#![deny(unused_must_use)]   //this deny is needed primarily not to forget to unwrap Sender::send()
+#![deny(unused_must_use)] //this deny is needed primarily not to forget to unwrap Sender::send()
 
-extern crate routing;
-extern crate clap;
-extern crate lru_time_cache;
-extern crate maidsafe_utilities;
-extern crate pretty_env_logger;
-extern crate shrust;
 extern crate bitcrypto as crypto;
 extern crate chain;
-extern crate serialization as ser;
-extern crate message;
-extern crate params;
-extern crate primitives;
+extern crate clap;
+extern crate ctrlc;
 extern crate db;
 extern crate keys;
+extern crate lru_time_cache;
+extern crate maidsafe_utilities;
+extern crate message;
+extern crate params;
+extern crate pretty_env_logger;
+extern crate primitives;
+extern crate routing;
 extern crate script;
-extern crate ctrlc;
+extern crate serialization as ser;
+extern crate shrust;
 
-#[macro_use] extern crate log;
-#[macro_use] extern crate unwrap;
-#[macro_use] extern crate serde_derive;
+#[macro_use]
+extern crate log;
+#[macro_use]
+extern crate serde_derive;
+#[macro_use]
+extern crate unwrap;
 
 use clap::*;
 
@@ -29,18 +32,29 @@ use std::sync::{Arc, RwLock};
 use std::process;
 use std::sync::mpsc;
 
-mod mempool; use mempool::Mempool;
-mod network; use network::NetworkNode;
-mod executor; use executor::Executor; use executor::ExecutorTask;
-mod input_listener; use input_listener::InputListener;
-mod message_wrapper; use message_wrapper::MessageWrapper;
-mod message_handler; use message_handler::MessageHandler;
-mod service; use service::Service;
+mod mempool;
+mod network;
+mod executor;
+mod input_listener;
+mod message_wrapper;
+mod message_handler;
+mod service;
 mod db_utils;
-mod wallet_manager; mod wallet_manager_tasks; use wallet_manager::WalletManager;
+mod wallet_manager;
+mod wallet_manager_tasks;
 mod wallet;
-mod responder; use responder::Responder;
+mod responder;
 
+use mempool::Mempool;
+use network::NetworkNode;
+use executor::Executor;
+use executor::ExecutorTask;
+use input_listener::InputListener;
+use message_wrapper::MessageWrapper;
+use message_handler::MessageHandler;
+use service::Service;
+use wallet_manager::WalletManager;
+use responder::Responder;
 
 fn main() {
     pretty_env_logger::init();
@@ -71,7 +85,7 @@ fn main() {
     let default_db_cache = 512;
     let storage = db_utils::open_db(db_path_string, default_db_cache);
     db_utils::init_db(storage.clone(), NetworkParams::Mainnet).unwrap(); //init db with genesis block
-    
+
     //setup mempool
     let mempool_ref = Arc::new(RwLock::new(Mempool::new()));
 
@@ -85,7 +99,7 @@ fn main() {
     let responder = Responder {
         storage: storage.clone(),
         task_receiver: responder_task_receiver,
-        message_wrapper: MessageWrapper::new(to_network_sender.clone())
+        message_wrapper: MessageWrapper::new(to_network_sender.clone()),
     };
     //setup network messages handler
     let mut message_handler = MessageHandler {
@@ -93,7 +107,7 @@ fn main() {
         store: storage.clone(),
         network_data_receiver: from_network_receiver,
         network_responder: responder_task_sender.clone(),
-        message_wrapper: MessageWrapper::new(to_network_sender.clone())
+        message_wrapper: MessageWrapper::new(to_network_sender.clone()),
     };
 
     //setup p2p layer
@@ -105,19 +119,36 @@ fn main() {
     );
 
     //setup wallet task and miscellaneous task executor
-    let (mut wallet_manager, wallet_manager_sender) = WalletManager::new(mempool_ref.clone(), storage.clone(), MessageWrapper::new(to_network_sender.clone()));
-    let (mut executor, executor_sender) = Executor::new(mempool_ref.clone(), storage.clone(), MessageWrapper::new(to_network_sender.clone()));
-    
+    let (mut wallet_manager, wallet_manager_sender) = WalletManager::new(
+        mempool_ref.clone(),
+        storage.clone(),
+        MessageWrapper::new(to_network_sender.clone()),
+    );
+    let (mut executor, executor_sender) = Executor::new(
+        mempool_ref.clone(),
+        storage.clone(),
+        MessageWrapper::new(to_network_sender.clone()),
+    );
+
     //setup telnet listener
-    let node_unique_number = matches.value_of("number").unwrap_or("0").parse::<u32>().expect("Node number is incorrect");
-    let input_listener = InputListener::new(node_unique_number, executor_sender.clone(), wallet_manager_sender, terminate_sender);
+    let node_unique_number = matches
+        .value_of("number")
+        .unwrap_or("0")
+        .parse::<u32>()
+        .expect("Node number is incorrect");
+    let input_listener = InputListener::new(
+        node_unique_number,
+        executor_sender.clone(),
+        wallet_manager_sender,
+        terminate_sender,
+    );
 
     //launch services in different threads
-    let input_listener_thread = thread::spawn( move || input_listener.run() );
-    let responder_thread = thread::spawn( move || responder.run() );
-    let executor_thread = thread::spawn( move || executor.run() );
-    let wallet_manager_thread = thread::spawn( move || wallet_manager.run() );    
-    let message_handler_thread = thread::spawn( move || message_handler.run() );
+    let input_listener_thread = thread::spawn(move || input_listener.run());
+    let responder_thread = thread::spawn(move || responder.run());
+    let executor_thread = thread::spawn(move || executor.run());
+    let wallet_manager_thread = thread::spawn(move || wallet_manager.run());
+    let message_handler_thread = thread::spawn(move || message_handler.run());
 
     //prepare to handle Ctrl-C
     ctrlc::set_handler(move || {
@@ -128,15 +159,17 @@ fn main() {
     }).expect("Error setting Ctrl-C handler");
 
     network.set_on_connect_handler(move || {
-        executor_sender.send(ExecutorTask::RequestLatestBlocks()).unwrap();
+        executor_sender
+            .send(ExecutorTask::RequestLatestBlocks())
+            .unwrap();
     });
 
-    network.run();  //main thread loop
-    drop(network);  //remove everything after network loop was finished
+    network.run(); //main thread loop
+    drop(network); //remove everything after network loop was finished
 
     //wait for other threads to finish
     responder_thread.join().unwrap();
-    executor_thread.join().unwrap();   
+    executor_thread.join().unwrap();
     wallet_manager_thread.join().unwrap();
     input_listener_thread.join().unwrap();
     message_handler_thread.join().unwrap();

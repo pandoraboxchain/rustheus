@@ -1,20 +1,18 @@
 use lru_time_cache::LruCache;
 use maidsafe_utilities::serialisation::{deserialise, serialise};
-use routing::{Authority, ClientError, Event, EventStream, ImmutableData,
-              MessageId, MutableData, Node, Prefix, Request, Response,
-              Config, DevConfig, XorName};
+use routing::{Authority, ClientError, Config, DevConfig, Event, EventStream, ImmutableData,
+              MessageId, MutableData, Node, Prefix, Request, Response, XorName};
 use std::collections::HashMap;
 use std::time::Duration;
-use std::sync::mpsc::{Sender, Receiver, TryRecvError};
+use std::sync::mpsc::{Receiver, Sender, TryRecvError};
 use chain::bytes::Bytes;
 use std::thread;
 
 pub type PeerIndex = XorName;
 
-pub struct PeerAndBytes
-{
+pub struct PeerAndBytes {
     pub peer: PeerIndex,
-    pub bytes: Bytes
+    pub bytes: Bytes,
 }
 
 /// A simple example node implementation for a network based on the Routing library.
@@ -26,21 +24,28 @@ pub struct NetworkNode {
     request_cache: LruCache<MessageId, (Authority<XorName>, Authority<XorName>)>,
 
     from_network_sender: Sender<PeerAndBytes>,
-    
+
     to_network_receiver: Receiver<PeerAndBytes>,
-    terminate_receiver: Receiver<bool>, 
+    terminate_receiver: Receiver<bool>,
 
     on_connected: Option<Box<Fn()>>,
 }
 
 impl NetworkNode {
     /// Creates a new node and attempts to establish a connection to the network.
-    pub fn new(first: bool,
+    pub fn new(
+        first: bool,
         from_network_sender: Sender<PeerAndBytes>,
         to_network_receiver: Receiver<PeerAndBytes>,
-        terminate_receiver: Receiver<bool>) -> Self {
-        let dev_config = DevConfig { allow_multiple_lan_nodes: true, ..Default::default() };
-        let config = Config { dev: Some(dev_config) };
+        terminate_receiver: Receiver<bool>,
+    ) -> Self {
+        let dev_config = DevConfig {
+            allow_multiple_lan_nodes: true,
+            ..Default::default()
+        };
+        let config = Config {
+            dev: Some(dev_config),
+        };
         let node = unwrap!(Node::builder().first(first).config(config).create());
 
         let network = NetworkNode {
@@ -49,7 +54,7 @@ impl NetworkNode {
             client_accounts: HashMap::new(),
             request_cache: LruCache::with_expiry_duration(Duration::from_secs(60 * 10)),
 
-            from_network_sender,  
+            from_network_sender,
             to_network_receiver,
             terminate_receiver,
             on_connected: None,
@@ -58,40 +63,34 @@ impl NetworkNode {
         network
     }
 
-    pub fn run(&mut self)
-    {
+    pub fn run(&mut self) {
         let mut disconnected = false;
-        while !disconnected
-        {
-            if let Ok(message_to_send) = self.to_network_receiver.try_recv()
-            {
-                if message_to_send.peer == XorName::default()
-                {
+        while !disconnected {
+            if let Ok(message_to_send) = self.to_network_receiver.try_recv() {
+                if message_to_send.peer == XorName::default() {
                     self.broadcast_message(&message_to_send.bytes.take());
-                }
-                else
-                {
+                } else {
                     self.send_message(message_to_send.peer, &message_to_send.bytes.take());
                 }
             }
 
             match self.node.try_next_ev() {
                 Ok(event) => disconnected = !self.handle_node_event(event),
-                Err(error) => if error == TryRecvError::Disconnected { disconnected = true }
+                Err(error) => if error == TryRecvError::Disconnected {
+                    disconnected = true
+                },
             }
 
-            if let Ok(_) = self.terminate_receiver.try_recv()
-            {
+            if let Ok(_) = self.terminate_receiver.try_recv() {
                 disconnected = true;
             }
 
-            thread::sleep(Duration::from_millis(400));  //TODO make select! macro to wait for recv any of two threads
+            thread::sleep(Duration::from_millis(400)); //TODO make select! macro to wait for recv any of two threads
         }
     }
 
     /// Runs the event loop, handling events raised by the Routing library.
-    fn handle_node_event(&mut self, event: Event) -> bool
-    {  
+    fn handle_node_event(&mut self, event: Event) -> bool {
         match event {
             Event::Request { request, src, dst } => self.handle_request(request, src, dst),
             Event::Response { response, src, dst } => self.handle_response(response, src, dst),
@@ -112,11 +111,11 @@ impl NetworkNode {
             }
             Event::Connected => {
                 info!("{} Received connected event", self.get_debug_name());
-                if let Some(ref on_connected) = self.on_connected
-                {
+                if let Some(ref on_connected) = self.on_connected {
                     on_connected();
                 }
-                if self.on_connected.is_some()  //TODO less hackish way to unset listener
+                if self.on_connected.is_some()
+                //TODO less hackish way to unset listener
                 {
                     self.on_connected = None;
                 }
@@ -146,8 +145,7 @@ impl NetworkNode {
                 let pfx = Prefix::new(prefix.bit_count() + 1, *unwrap!(self.node.id()).name());
                 self.send_refresh(MessageId::from_lost_node(pfx.lower_bound()));
             }
-            Event::Tick =>
-            {
+            Event::Tick => {
                 info!("Tick");
             }
         }
@@ -189,15 +187,16 @@ impl NetworkNode {
         dst: Authority<XorName>,
     ) {
         match (response, dst) {
-            (Response::PutIData { res, msg_id }, Authority::NodeManager(_)) |
-            (Response::PutIData { res, msg_id }, Authority::ManagedNode(_)) => {
+            (Response::PutIData { res, msg_id }, Authority::NodeManager(_))
+            | (Response::PutIData { res, msg_id }, Authority::ManagedNode(_)) => {
                 if let Some((src, dst)) = self.request_cache.remove(&msg_id) {
                     unwrap!(self.node.send_put_idata_response(src, dst, res, msg_id));
                 }
             }
-            (Response::PutMData { .. }, Authority::NodeManager(_)) |
-            (Response::PutMData { .. }, Authority::ManagedNode(_)) => 
-                warn!("Attempt to use response on mutable data request"),
+            (Response::PutMData { .. }, Authority::NodeManager(_))
+            | (Response::PutMData { .. }, Authority::ManagedNode(_)) => {
+                warn!("Attempt to use response on mutable data request")
+            }
             _ => unreachable!(),
         }
     }
@@ -246,9 +245,7 @@ impl NetworkNode {
                 let _ = self.idata_store.insert(*data.name(), data);
                 let _ = self.node.send_put_idata_response(dst, src, Ok(()), msg_id);
             }
-            Authority::NodeManager(_) |
-            Authority::ManagedNode(_) |
-            Authority::ClientManager(_) => {
+            Authority::NodeManager(_) | Authority::ManagedNode(_) | Authority::ClientManager(_) => {
                 info!(
                     "{:?} Put Request: Updating ClientManager: key {:?}",
                     self.get_debug_name(),
@@ -256,7 +253,6 @@ impl NetworkNode {
                 );
                 if self.request_cache.insert(msg_id, (dst, src)).is_none() {
                     self.handle_message(src.name(), data.value());
-                    
                 } else {
                     warn!("Attempt to reuse message ID {:?}.", msg_id);
                     unwrap!(self.node.send_put_idata_response(
@@ -266,7 +262,6 @@ impl NetworkNode {
                         msg_id,
                     ));
                 }
-
             }
             _ => unreachable!("NetworkNode: Unexpected dst ({:?})", dst),
         }
@@ -335,7 +330,7 @@ impl NetworkNode {
                 );
                 let _ = self.idata_store.insert(*data.name(), data);
             }
-            RefreshContent::MutableData(_) => { }
+            RefreshContent::MutableData(_) => {}
         }
     }
 
@@ -349,35 +344,35 @@ impl NetworkNode {
         }
     }
 
-    fn handle_message(&mut self, peer: PeerIndex, data: &Vec<u8>)
-    {
-        let peer_and_bytes = PeerAndBytes { peer, bytes: data.clone().into() };
+    fn handle_message(&mut self, peer: PeerIndex, data: &Vec<u8>) {
+        let peer_and_bytes = PeerAndBytes {
+            peer,
+            bytes: data.clone().into(),
+        };
         self.from_network_sender.send(peer_and_bytes).unwrap();
     }
 
-    fn broadcast_message(&mut self, message: &Vec<u8>)
-    {
+    fn broadcast_message(&mut self, message: &Vec<u8>) {
         let node_name = *unwrap!(self.node.id()).name();
         let src = Authority::ManagedNode(node_name);
         let dst = Authority::NodeManager(node_name);
 
         unwrap!(self.node.send_put_idata_request(
             src,
-            dst, 
+            dst,
             ImmutableData::new(message.clone()),
             MessageId::new()
         ));
     }
 
-    fn send_message(&mut self, peer_name: PeerIndex, message: &Vec<u8>)
-    {
+    fn send_message(&mut self, peer_name: PeerIndex, message: &Vec<u8>) {
         let our_name = *unwrap!(self.node.id()).name();
         let src = Authority::ManagedNode(our_name);
         let dst = Authority::ManagedNode(peer_name);
 
         unwrap!(self.node.send_put_idata_request(
             src,
-            dst, 
+            dst,
             ImmutableData::new(message.clone()),
             MessageId::new()
         ));
@@ -386,7 +381,6 @@ impl NetworkNode {
     pub fn set_on_connect_handler<CB: 'static + Fn()>(&mut self, c: CB) {
         self.on_connected = Some(Box::new(c));
     }
-
 }
 
 /// Refresh messages.
@@ -396,5 +390,3 @@ enum RefreshContent {
     ImmutableData(ImmutableData),
     MutableData(MutableData),
 }
-
-
