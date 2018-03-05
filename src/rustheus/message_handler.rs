@@ -15,6 +15,8 @@ use chain::Transaction;
 use responder::ResponderTask;
 use network::{PeerAndBytes, PeerIndex};
 use message_wrapper::MessageWrapper;
+use verification::BackwardsCompatibleChainVerifier as ChainVerifier;
+use params::{ConsensusFork, ConsensusParams, NetworkParams};
 
 pub struct MessageHandler {
     pub mempool: MempoolRef,
@@ -22,9 +24,33 @@ pub struct MessageHandler {
     pub store: SharedStore,
     pub network_responder: Sender<ResponderTask>,
     pub message_wrapper: MessageWrapper,
+
+    pub verifier: ChainVerifier,
 }
 
 impl MessageHandler {
+    pub fn new(
+        mempool: MempoolRef,
+        store: SharedStore,
+        network_data_receiver: Receiver<PeerAndBytes>,
+        network_responder: Sender<ResponderTask>,
+        message_wrapper: MessageWrapper,
+    ) -> Self {
+        let verifier = ChainVerifier::new(
+            store.clone(),
+            ConsensusParams::new(NetworkParams::Mainnet, ConsensusFork::NoFork),
+        );
+
+        MessageHandler {
+            mempool,
+            store,
+            network_data_receiver,
+            network_responder,
+            message_wrapper,
+            verifier,
+        }
+    }
+
     //TODO move it to appropriate file
     //TODO make it check not only [0] input
     fn verify_transaction(&self, transaction: &Transaction) -> Result<(), ScriptError> {

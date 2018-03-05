@@ -16,6 +16,7 @@ extern crate routing;
 extern crate script;
 extern crate serialization as ser;
 extern crate shrust;
+extern crate verification;
 
 #[macro_use]
 extern crate log;
@@ -101,14 +102,15 @@ fn main() {
         task_receiver: responder_task_receiver,
         message_wrapper: MessageWrapper::new(to_network_sender.clone()),
     };
+
     //setup network messages handler
-    let mut message_handler = MessageHandler {
-        mempool: mempool_ref.clone(),
-        store: storage.clone(),
-        network_data_receiver: from_network_receiver,
-        network_responder: responder_task_sender.clone(),
-        message_wrapper: MessageWrapper::new(to_network_sender.clone()),
-    };
+    let mut message_handler = MessageHandler::new(
+        mempool_ref.clone(),
+        storage.clone(),
+        from_network_receiver,
+        responder_task_sender.clone(),
+        MessageWrapper::new(to_network_sender.clone()),
+    );
 
     //setup p2p layer
     let mut network = NetworkNode::new(

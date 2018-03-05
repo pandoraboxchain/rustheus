@@ -25,6 +25,7 @@ primitives = { path = "src/primitives" }
 db = { path = "src/db" }
 keys = { path = "src/keys" }
 script = { path = "src/script" }
+verification = { path = "src/verification" }
 
 [[bin]]
 path = "src/rustheus/main.rs"
