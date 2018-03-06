@@ -6,13 +6,15 @@
             "request": "launch",
             "name": "Debug",
             "program": "${workspaceRoot}/target/debug/rustheus",
-            "args": ["-n","3"],     //launch as third client
+            "args": ["-f"],  //launch as bootstrap node
+            //"args": ["-n","3"],     //launch as third client
             "cwd": "${workspaceRoot}/target/debug/",
             "preLaunchTask": "build",
             "terminal": "integrated",
             "sourceLanguages": ["rust"],
             "env": {
-                "RUST_LOG":"debug,handler=trace"
+                "RUST_LOG":"debug,handler=trace",
+                "RUST_BACKTRACE":"full"
             }
         }
     ]

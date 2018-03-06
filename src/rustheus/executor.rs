@@ -1,8 +1,9 @@
-use chain::{Block, BlockHeader, Transaction, TransactionInput, TransactionOutput};
+use chain::{Block, BlockHeader, Transaction, TransactionInput, TransactionOutput, IndexedTransaction};
 use crypto::DHash256;
 use std::sync::mpsc::{self, Receiver, Sender};
 use mempool::MempoolRef;
-use std::time::{SystemTime, UNIX_EPOCH};
+use memory_pool::MemoryPoolOrderingStrategy as OrderingStrategy;
+use std::time::{SystemTime, UNIX_EPOCH}; 
 use message::types::{Block as BlockMessage, GetBlocks};
 use message_wrapper::MessageWrapper;
 use db::SharedStore;
@@ -79,11 +80,15 @@ impl Executor {
         };
         let mut mempool = self.mempool.write().unwrap();
         let mut transactions = vec![self.create_coinbase(coinbase_recipient)];
-        transactions.extend(mempool.drain_as_vec());
+        //TODO add transaction fees to coinbase reward
+        //TODO take not fixed number of transactions, but deduce it from block size
+        let indexed_transactions = mempool.remove_n_with_strategy(50, OrderingStrategy::ByTransactionScore);
+        let block_tx: Vec<Transaction> = indexed_transactions.into_iter().map(|tx| tx.raw).collect();
+        transactions.extend(block_tx);
         let mut block = Block::new(header, transactions);
 
         //recalculate merkle root
-        block.block_header.merkle_root_hash = block.witness_merkle_root();
+        block.block_header.merkle_root_hash = block.merkle_root();
 
         let block_message = BlockMessage { block };
         self.message_wrapper.broadcast(&block_message);

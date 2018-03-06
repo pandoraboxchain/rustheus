@@ -53,7 +53,9 @@ impl<'a> TransactionAcceptor<'a> {
 	pub fn check(&self) -> Result<(), TransactionError> {
 		try!(self.premature_witness.check());
 		try!(self.missing_inputs.check());
-		try!(self.maturity.check());
+		//TODO for now there is no maturity check because no one is mining
+		//but think of enabling it later or through some input parameter
+		//try!(self.maturity.check()); 
 		try!(self.overspent.check());
 		try!(self.double_spent.check());
 		try!(self.return_replay_protection.check());
@@ -102,7 +104,9 @@ impl<'a> MemoryPoolTransactionAcceptor<'a> {
 		// Bip30 is not checked because we don't need to allow tx pool acceptance of an unspent duplicate.
 		// Tx pool validation is not strinctly a matter of consensus.
 		try!(self.missing_inputs.check());
-		try!(self.maturity.check());
+		//TODO for now there is no maturity check because no one is mining
+		//but think of enabling it later or through some input parameter
+		// try!(self.maturity.check());
 		try!(self.overspent.check());
 		try!(self.sigops.check());
 		try!(self.double_spent.check());

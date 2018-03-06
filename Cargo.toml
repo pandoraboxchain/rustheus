@@ -26,6 +26,7 @@ db = { path = "src/db" }
 keys = { path = "src/keys" }
 script = { path = "src/script" }
 verification = { path = "src/verification" }
+memory_pool = { path = "src/mempool" }
 
 [[bin]]
 path = "src/rustheus/main.rs"

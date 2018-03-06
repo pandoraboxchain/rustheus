@@ -17,6 +17,7 @@ extern crate script;
 extern crate serialization as ser;
 extern crate shrust;
 extern crate verification;
+extern crate memory_pool;
 
 #[macro_use]
 extern crate log;
@@ -32,6 +33,7 @@ use params::NetworkParams;
 use std::sync::{Arc, RwLock};
 use std::process;
 use std::sync::mpsc;
+use memory_pool::MemoryPool;
 
 mod mempool;
 mod network;
@@ -88,7 +90,7 @@ fn main() {
     db_utils::init_db(storage.clone(), NetworkParams::Mainnet).unwrap(); //init db with genesis block
 
     //setup mempool
-    let mempool_ref = Arc::new(RwLock::new(Mempool::new()));
+    let mempool_ref = Arc::new(RwLock::new(MemoryPool::new()));
 
     //setup cross thread communication channels
     let (to_network_sender, to_network_receiver) = mpsc::channel();

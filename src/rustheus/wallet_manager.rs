@@ -9,6 +9,8 @@ use mempool::MempoolRef;
 use wallet::Wallet;
 use db::SharedStore;
 use script::{Builder, Script, SighashBase, SignatureVersion, TransactionInputSigner};
+use chain::constants::SEQUENCE_LOCKTIME_DISABLE_FLAG;
+
 //temp
 use chain::{TransactionInput, TransactionOutput};
 
@@ -119,12 +121,12 @@ impl WalletManager {
                 TransactionInput {
                     previous_output: unspent_out_points[0].clone(),
                     script_sig: unspent_outputs[0].script_pubkey.clone(),
-                    sequence: 0xffffffff,
+                    sequence: SEQUENCE_LOCKTIME_DISABLE_FLAG,
                     script_witness: vec![],
                 },
             ],
             outputs: outputs.clone(),
-            lock_time: 0,
+            lock_time: 0xffffffff,
         };
 
         let signer: TransactionInputSigner = transaction.into();
@@ -144,7 +146,7 @@ impl WalletManager {
             version: 0,
             inputs: vec![signed_input],
             outputs: outputs,
-            lock_time: 0,
+            lock_time: 0xffffffff,
         };
 
         let tx = Tx {
@@ -153,7 +155,7 @@ impl WalletManager {
         self.wrapper.broadcast(&tx);
 
         let mut mempool = self.mempool.write().unwrap();
-        mempool.insert(signed_transaction);
+        mempool.insert_verified(signed_transaction.into());
     }
 }
 

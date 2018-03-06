@@ -8,6 +8,7 @@ use service::Service;
 use crypto::checksum;
 use db::SharedStore;
 use mempool::MempoolRef;
+use memory_pool::MemoryPoolTransactionOutputProvider;
 use script::{verify_script, SignatureVersion, TransactionInputSigner, TransactionSignatureChecker};
 use script::{ScriptWitness, VerificationFlags};
 use script::Error as ScriptError;
@@ -17,6 +18,7 @@ use network::{PeerAndBytes, PeerIndex};
 use message_wrapper::MessageWrapper;
 use verification::BackwardsCompatibleChainVerifier as ChainVerifier;
 use params::{ConsensusFork, ConsensusParams, NetworkParams};
+
 
 pub struct MessageHandler {
     pub mempool: MempoolRef,
@@ -81,15 +83,44 @@ impl MessageHandler {
     }
     //TODO check inputs other than [0]
     fn on_transaction(&self, message: types::Tx) {
-        let verification_result = self.verify_transaction(&message.transaction);
-
-        match verification_result {
-            Err(err) => error!("Failed to accept transaction to mempool. {}", err),
-            Ok(_) => {
-                let mut mempool = self.mempool.write().unwrap();
-                mempool.insert(message.transaction);
+        //if verifier.verify_mempool_transaction(store.as_block_header_provider(),
+        let transaction = message.transaction;
+        match MemoryPoolTransactionOutputProvider::for_transaction(
+            self.store.clone(),
+            &self.mempool,
+            &transaction,
+        ) {
+            Err(e) => error!(
+                "Can't accept transaction {} into mempool {:?}",
+                transaction.hash(), e
+            ),
+            Ok(tx_output_provider) => {
+                let height = self.store.best_block().number;
+                match self.verifier.verify_mempool_transaction(
+                    self.store.as_block_header_provider(),
+                    &tx_output_provider,
+                    height,
+                    /*time*/ 0,
+                    &transaction,
+                ) {
+                    Ok(_) => {
+                        // we have verified transaction, but possibly this transaction replaces
+                        // existing transaction from memory pool
+                        // => remove previous transactions before
+                        let mut memory_pool = self.mempool.write().unwrap();
+                        for input in &transaction.inputs {
+                            memory_pool.remove_by_prevout(&input.previous_output);
+                        }
+                        // now insert transaction itself
+                        memory_pool.insert_verified(transaction.into());
+                    }
+                    Err(e) => error!(
+                        "Can't accept transaction {} into mempool {:?}",
+                        transaction.hash(), e
+                    ),
+                }
             }
-        }
+        };
     }
 
     fn on_block(&self, message: types::Block) {
@@ -101,7 +132,9 @@ impl MessageHandler {
                 Ok(_) => {
                     info!("Block inserted and canonized with hash {}", hash);
                     let mut mempool = self.mempool.write().unwrap();
-                    mempool.remove_transactions(transactions);
+                    for transaction in transactions {
+                        mempool.remove_by_hash(&transaction.hash());
+                    }
                 }
                 Err(err) => error!("Cannot canonize received block due to {:?}", err),
             },

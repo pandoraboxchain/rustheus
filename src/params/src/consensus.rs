@@ -53,19 +53,19 @@ impl ConsensusFork {
  		1_000_000
 	}
 
-	pub fn min_block_size(&self, height: u32) -> usize {
+	pub fn min_block_size(&self, _height: u32) -> usize {
 		0
 	}
 
-	pub fn max_block_size(&self, height: u32) -> usize {
+	pub fn max_block_size(&self, _height: u32) -> usize {
 		1_000_000
 	}
 
-	pub fn max_block_sigops(&self, height: u32, block_size: usize) -> usize {
+	pub fn max_block_sigops(&self, _height: u32, _block_size: usize) -> usize {
 		20_000
 	}
 
-	pub fn max_block_sigops_cost(&self, height: u32, block_size: usize) -> usize {
+	pub fn max_block_sigops_cost(&self, _height: u32, _block_size: usize) -> usize {
 		80_000
 	}
 

@@ -1,0 +1,17 @@
+[package]
+name = "memory_pool"
+version = "0.1.0"
+authors = ["Ethcore <admin@ethcore.io>"]
+
+[dependencies]
+byteorder = "1.0"
+heapsize = "0.4"
+bitcrypto = { path = "../crypto" }
+chain = { path = "../chain" }
+db = { path = "../db" }
+params = { path = "../params" }
+primitives = { path = "../primitives" }
+serialization = { path = "../serialization" }
+verification = { path = "../verification" }
+keys = { path = "../keys" }
+script = { path = "../script" }

@@ -2,8 +2,9 @@ use chain::Transaction;
 use std::sync::{Arc, RwLock};
 use std::collections::HashMap;
 use primitives::hash::H256;
+use memory_pool::MemoryPool;
 
-pub type MempoolRef = Arc<RwLock<Mempool>>;
+pub type MempoolRef = Arc<RwLock<MemoryPool>>;
 
 /// Wrapper around `Vec<Transaction>`
 pub struct Mempool {

@@ -4,6 +4,7 @@
 use chain::Block;
 use primitives::hash::H256;
 use primitives::bigint::U256;
+use chain::constants::SEQUENCE_FINAL;
 
 pub const MAGIC_MAINNET: u32 = 0x06A4D09A;
 const MAGIC_TESTNET: u32 = 0x7E274A4D;
@@ -70,7 +71,7 @@ impl NetworkParams {
 						value: 50,
 						script_pubkey: destination_locking_script,
 					}],
-					lock_time: 0,
+					lock_time: 0xffffffff,
 				};
 
 				let mut block = Block
@@ -87,7 +88,7 @@ impl NetworkParams {
 					transactions: vec![transaction]
 				};
 
-				block.block_header.merkle_root_hash = block.witness_merkle_root();
+				block.block_header.merkle_root_hash = block.merkle_root();
 
 				block
 			}
