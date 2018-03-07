@@ -5,7 +5,7 @@ use service::Service;
 use chain::Transaction;
 use message_wrapper::MessageWrapper;
 use message::types::Tx;
-use mempool::MempoolRef;
+use memory_pool::MemoryPoolRef;
 use wallet::Wallet;
 use db::SharedStore;
 use script::{Builder, Script, SighashBase, SignatureVersion, TransactionInputSigner};
@@ -16,7 +16,7 @@ use chain::{TransactionInput, TransactionOutput};
 
 pub struct WalletManager {
     receiver: Receiver<Task>,
-    mempool: MempoolRef,
+    mempool: MemoryPoolRef,
     wrapper: MessageWrapper,
     wallets: Vec<Wallet>,
     storage: SharedStore,
@@ -24,7 +24,7 @@ pub struct WalletManager {
 
 impl WalletManager {
     pub fn new(
-        mempool: MempoolRef,
+        mempool: MemoryPoolRef,
         storage: SharedStore,
         wrapper: MessageWrapper,
     ) -> (Self, Sender<Task>) {

@@ -7,7 +7,7 @@ use params::info::NETWORK_INFO;
 use service::Service;
 use crypto::checksum;
 use db::SharedStore;
-use mempool::MempoolRef;
+use memory_pool::MemoryPoolRef;
 use memory_pool::MemoryPoolTransactionOutputProvider;
 use script::{verify_script, SignatureVersion, TransactionInputSigner, TransactionSignatureChecker};
 use script::{ScriptWitness, VerificationFlags};
@@ -19,9 +19,8 @@ use message_wrapper::MessageWrapper;
 use verification::BackwardsCompatibleChainVerifier as ChainVerifier;
 use params::{ConsensusFork, ConsensusParams, NetworkParams};
 
-
 pub struct MessageHandler {
-    pub mempool: MempoolRef,
+    pub mempool: MemoryPoolRef,
     pub network_data_receiver: Receiver<PeerAndBytes>,
     pub store: SharedStore,
     pub network_responder: Sender<ResponderTask>,
@@ -32,7 +31,7 @@ pub struct MessageHandler {
 
 impl MessageHandler {
     pub fn new(
-        mempool: MempoolRef,
+        mempool: MemoryPoolRef,
         store: SharedStore,
         network_data_receiver: Receiver<PeerAndBytes>,
         network_responder: Sender<ResponderTask>,
@@ -53,34 +52,6 @@ impl MessageHandler {
         }
     }
 
-    //TODO move it to appropriate file
-    //TODO make it check not only [0] input
-    fn verify_transaction(&self, transaction: &Transaction) -> Result<(), ScriptError> {
-        let input = &transaction.inputs[0];
-
-        let prev_output = self.store
-            .transaction_output(&input.previous_output, 0)
-            .expect("No such previous output in received transaction found. Discarding");
-
-        let signer: TransactionInputSigner = transaction.clone().into();
-        let checker = TransactionSignatureChecker {
-            signer: signer,
-            input_index: 0,
-            input_amount: 0,
-        };
-
-        let script_sig = input.script_sig.clone().into();
-        let script_pubkey = prev_output.script_pubkey.into();
-
-        verify_script(
-            &script_sig,
-            &script_pubkey,
-            &ScriptWitness::default(),
-            &VerificationFlags::default(),
-            &checker,
-            SignatureVersion::Base,
-        )
-    }
     //TODO check inputs other than [0]
     fn on_transaction(&self, message: types::Tx) {
         //if verifier.verify_mempool_transaction(store.as_block_header_provider(),
@@ -92,7 +63,8 @@ impl MessageHandler {
         ) {
             Err(e) => error!(
                 "Can't accept transaction {} into mempool {:?}",
-                transaction.hash(), e
+                transaction.hash(),
+                e
             ),
             Ok(tx_output_provider) => {
                 let height = self.store.best_block().number;
@@ -116,7 +88,8 @@ impl MessageHandler {
                     }
                     Err(e) => error!(
                         "Can't accept transaction {} into mempool {:?}",
-                        transaction.hash(), e
+                        transaction.hash(),
+                        e
                     ),
                 }
             }

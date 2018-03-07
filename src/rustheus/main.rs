@@ -35,7 +35,6 @@ use std::process;
 use std::sync::mpsc;
 use memory_pool::MemoryPool;
 
-mod mempool;
 mod network;
 mod executor;
 mod input_listener;
@@ -48,7 +47,6 @@ mod wallet_manager_tasks;
 mod wallet;
 mod responder;
 
-use mempool::Mempool;
 use network::NetworkNode;
 use executor::Executor;
 use executor::ExecutorTask;
@@ -110,7 +108,7 @@ fn main() {
         mempool_ref.clone(),
         storage.clone(),
         from_network_receiver,
-        responder_task_sender.clone(),
+        responder_task_sender,
         MessageWrapper::new(to_network_sender.clone()),
     );
 
@@ -172,9 +170,13 @@ fn main() {
     drop(network); //remove everything after network loop was finished
 
     //wait for other threads to finish
-    responder_thread.join().unwrap();
-    executor_thread.join().unwrap();
-    wallet_manager_thread.join().unwrap();
     input_listener_thread.join().unwrap();
     message_handler_thread.join().unwrap();
+    wallet_manager_thread.join().unwrap();
+    responder_thread.join().unwrap();
+    executor_thread.join().unwrap();
+
+    //TODO ending app properly is shallow. Every module and thread has to end, so database will be saved properly
+    //for this to happen every used sender should be deleted so every thread may break it's loop when no senders is available
+    //maybe it's worth switching to some kind of per task futures because current threads architecture consumes whole cpu core for no particular reason
 }

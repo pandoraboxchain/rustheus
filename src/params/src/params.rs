@@ -4,7 +4,6 @@
 use chain::Block;
 use primitives::hash::H256;
 use primitives::bigint::U256;
-use chain::constants::SEQUENCE_FINAL;
 
 pub const MAGIC_MAINNET: u32 = 0x06A4D09A;
 const MAGIC_TESTNET: u32 = 0x7E274A4D;

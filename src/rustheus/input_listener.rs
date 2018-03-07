@@ -166,7 +166,7 @@ impl InputListener {
     pub fn run(&self) {
         let port = "407".to_owned() + &self.node_number.to_string();
         info!(
-            "Node is about to start. You may now run $ telnet localhost {}",
+            "Node is about to start. You may run $ telnet localhost {}",
             port
         );
 

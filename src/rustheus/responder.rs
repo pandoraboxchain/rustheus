@@ -23,7 +23,10 @@ impl Responder {
     pub fn run(&self) {
         loop {
             match self.task_receiver.recv() {
-                Err(_) => break,
+                Err(_) => {
+                    info!("Responder thread ended");
+                    break;
+                },
                 Ok(task) => match task {
                     ResponderTask::GetBlocks(peer_index, message) => {
                         self.respond_get_blocks(peer_index, message)

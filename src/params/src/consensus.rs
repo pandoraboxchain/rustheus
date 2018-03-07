@@ -1,4 +1,4 @@
-use {NetworkParams, Magic, Deployment};
+use {NetworkParams, Magic};
 
 #[derive(Debug, Clone)]
 /// Parameters that influence chain consensus.
