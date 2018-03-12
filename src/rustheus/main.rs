@@ -169,6 +169,8 @@ fn main() {
     network.run(); //main thread loop
     drop(network); //remove everything after network loop was finished
 
+    info!("Node is about to finish. If it doesn't it means one of the threads hangs and database won't save");
+
     //wait for other threads to finish
     input_listener_thread.join().unwrap();
     message_handler_thread.join().unwrap();

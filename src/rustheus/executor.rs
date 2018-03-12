@@ -1,5 +1,4 @@
-use chain::{Block, BlockHeader, Transaction, TransactionInput,
-            TransactionOutput};
+use chain::{Block, BlockHeader, Transaction, TransactionInput, TransactionOutput};
 use crypto::DHash256;
 use std::sync::mpsc::{self, Receiver, Sender};
 use memory_pool::MemoryPoolRef;
@@ -98,17 +97,23 @@ impl Executor {
     }
 
     fn create_coinbase(&self, recipient: Address) -> Transaction {
-        use chain::bytes::Bytes;
+        let block_height = self.storage.best_block().number + 1;
+
+        //add block height as coinbase prefix
+        let prefix = Builder::default()
+            .push_num(block_height.into())
+            .into_script();
+
         Transaction {
             version: 0,
-            inputs: vec![TransactionInput::coinbase(Bytes::default())],
+            inputs: vec![TransactionInput::coinbase(prefix.into())],
             outputs: vec![
                 TransactionOutput {
                     value: 50,
                     script_pubkey: Builder::build_p2pkh(&recipient.hash).to_bytes(),
                 },
             ],
-            lock_time: self.storage.best_block().number + 1, //use lock_time as uniqueness provider for coinbase transaction
+            lock_time: 0,
         }
     }
 

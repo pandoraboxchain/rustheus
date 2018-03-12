@@ -58,19 +58,18 @@ impl NetworkParams {
 
 	pub fn genesis_block(&self) -> Block {
 		use chain::{Block, BlockHeader, Transaction, TransactionInput, TransactionOutput};
-		use chain::bytes::Bytes;
 		match *self {
 			NetworkParams::Mainnet | NetworkParams::Other(_) =>
 			{
 				let destination_locking_script = "76a914c83ef7b094d48e873f0e13db7892dfe5120418be88ac".into();
 				let transaction = Transaction {
 					version: 0,
-					inputs: vec![ TransactionInput::coinbase(Bytes::default()) ],
+					inputs: vec![ TransactionInput::coinbase("0100".into()) ], //push 1 byte containing block height
 					outputs: vec![ TransactionOutput {
 						value: 50,
 						script_pubkey: destination_locking_script,
 					}],
-					lock_time: 0xffffffff,
+					lock_time: 0,
 				};
 
 				let mut block = Block

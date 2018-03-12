@@ -19,8 +19,9 @@ impl<'a> HeaderVerifier<'a> {
 	}
 
 	pub fn check(&self) -> Result<(), Error> {
-		try!(self.proof_of_work.check());
-		try!(self.timestamp.check());
+		//TODO do not verify proof of work and timestamp for now
+		//try!(self.proof_of_work.check());
+		//try!(self.timestamp.check());
 		Ok(())
 	}
 }

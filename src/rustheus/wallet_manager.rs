@@ -115,8 +115,11 @@ impl WalletManager {
             });
         }
 
+        let version = 0;
+        let lock_time = 0;
+
         let transaction = Transaction {
-            version: 0,
+            version,
             inputs: vec![
                 TransactionInput {
                     previous_output: unspent_out_points[0].clone(),
@@ -126,7 +129,7 @@ impl WalletManager {
                 },
             ],
             outputs: outputs.clone(),
-            lock_time: 0xffffffff,
+            lock_time,
         };
 
         let signer: TransactionInputSigner = transaction.into();
@@ -143,10 +146,10 @@ impl WalletManager {
         );
 
         let signed_transaction = Transaction {
-            version: 0,
+            version,
             inputs: vec![signed_input],
             outputs: outputs,
-            lock_time: 0xffffffff,
+            lock_time,
         };
 
         let tx = Tx {

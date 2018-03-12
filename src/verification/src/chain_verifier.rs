@@ -45,8 +45,7 @@ impl BackwardsCompatibleChainVerifier {
 		trace!(target: "verification", "verify_block: {:?} best_block: {:?} block_origin: {:?}", block.hash().reversed(), self.store.best_block(), block_origin);
 		match block_origin {
 			BlockOrigin::KnownBlock => {
-				// there should be no known blocks at this point
-				unreachable!();
+				warn!("Received block of known origin. It's worth to eliminate such cases for perfomance reasons")
 			},
 			BlockOrigin::CanonChain { block_number } => {
 				let header_provider = self.store.as_store().as_block_header_provider();

@@ -234,9 +234,21 @@ impl NetworkNode {
         data: ImmutableData,
         msg_id: MessageId,
     ) {
+        match src {
+            Authority::NaeManager(src_name)
+            | Authority::NodeManager(src_name)
+            | Authority::ManagedNode(src_name)
+            | Authority::ClientManager(src_name) => {
+                let our_name = *unwrap!(self.node.id()).name();
+                if our_name == src_name {
+                    return; //ignore our own broadcasts
+                }
+            },
+            _ => unreachable!("NetworkNode: Received message with unknown source authority src ({:?})", src), 
+        }
         match dst {
             Authority::NaeManager(_) => {
-                info!(
+                    info!(
                     "{:?} Storing : key {:?} sent from {:?}",
                     self.get_debug_name(),
                     data.name(),

@@ -9,14 +9,12 @@ use crypto::checksum;
 use db::SharedStore;
 use memory_pool::MemoryPoolRef;
 use memory_pool::MemoryPoolTransactionOutputProvider;
-use script::{verify_script, SignatureVersion, TransactionInputSigner, TransactionSignatureChecker};
-use script::{ScriptWitness, VerificationFlags};
-use script::Error as ScriptError;
-use chain::Transaction;
+use chain::IndexedBlock;
 use responder::ResponderTask;
 use network::{PeerAndBytes, PeerIndex};
 use message_wrapper::MessageWrapper;
 use verification::BackwardsCompatibleChainVerifier as ChainVerifier;
+use verification::{VerificationLevel, Verify};
 use params::{ConsensusFork, ConsensusParams, NetworkParams};
 
 pub struct MessageHandler {
@@ -97,16 +95,23 @@ impl MessageHandler {
     }
 
     fn on_block(&self, message: types::Block) {
-        let block = message.block;
+        let block: IndexedBlock = message.block.into();
+        match self.verifier.verify(VerificationLevel::Full, &block) {
+            Ok(_) => self.add_verified_block(block),
+            Err(err) => error!("Invalid block received: {:?}", err),
+        }
+    }
+
+    fn add_verified_block(&self, block: IndexedBlock) {
         let hash = block.hash().clone();
         let transactions = block.transactions.clone();
-        match self.store.insert(block.into()) {
+        match self.store.insert(block) {
             Ok(_) => match self.store.canonize(&hash) {
                 Ok(_) => {
                     info!("Block inserted and canonized with hash {}", hash);
                     let mut mempool = self.mempool.write().unwrap();
                     for transaction in transactions {
-                        mempool.remove_by_hash(&transaction.hash());
+                        mempool.remove_by_hash(&transaction.hash);
                     }
                 }
                 Err(err) => error!("Cannot canonize received block due to {:?}", err),
