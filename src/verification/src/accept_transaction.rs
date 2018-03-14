@@ -266,7 +266,7 @@ impl<'a> TransactionEval<'a> {
 		let verify_strictenc = false; //TODO check if we should verify strictenc
 		let verify_locktime = true;
 		let verify_dersig = true;
-		let signature_version = SignatureVersion::Base;
+		let signature_version = SignatureVersion::WitnessV0;
 
 		let verify_checksequence = deployments.csv();
 		let verify_witness = deployments.segwit();

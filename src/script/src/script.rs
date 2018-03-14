@@ -425,6 +425,7 @@ impl Script {
 					ScriptAddress::new_p2pkh(self.data[3..23].into()),
 				])
 			},
+			ScriptType::WitnessKey |
 			ScriptType::ScriptHash => {
 				Ok(vec![
 					ScriptAddress::new_p2sh(self.data[2..22].into()),
@@ -446,10 +447,7 @@ impl Script {
 				Ok(vec![])
 			},
 			ScriptType::WitnessScript => {
-				Ok(vec![]) // TODO
-			},
-			ScriptType::WitnessKey => {
-				Ok(vec![]) // TODO
+				unimplemented!();
 			},
 		}
 	}

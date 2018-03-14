@@ -18,7 +18,6 @@ pub struct BlockAcceptor<'a> {
 	pub sigops: BlockSigops<'a>,
 	pub coinbase_claim: BlockCoinbaseClaim<'a>,
 	pub coinbase_script: BlockCoinbaseScript<'a>,
-	pub witness: BlockWitness<'a>,
 }
 
 impl<'a> BlockAcceptor<'a> {
@@ -36,7 +35,6 @@ impl<'a> BlockAcceptor<'a> {
 			coinbase_script: BlockCoinbaseScript::new(block, consensus, height),
 			coinbase_claim: BlockCoinbaseClaim::new(block, store, height),
 			sigops: BlockSigops::new(block, store, consensus, height),
-			witness: BlockWitness::new(block, deployments),
 		}
 	}
 
@@ -46,7 +44,6 @@ impl<'a> BlockAcceptor<'a> {
 		self.serialized_size.check()?;
 		self.coinbase_claim.check()?;
 		self.coinbase_script.check()?;
-		self.witness.check()?;
 		Ok(())
 	}
 }
@@ -266,60 +263,6 @@ impl<'a> BlockCoinbaseScript<'a> {
 		} else {
 			Err(Error::CoinbaseScript)
 		}
-	}
-}
-
-pub struct BlockWitness<'a> {
-	block: CanonBlock<'a>,
-	segwit_active: bool,
-}
-
-impl<'a> BlockWitness<'a> {
-	fn new(block: CanonBlock<'a>, deployments: &'a BlockDeployments<'a>) -> Self {
-		let segwit_active = deployments.segwit();
-
-		BlockWitness {
-			block: block,
-			segwit_active: segwit_active,
-		}
-	}
-
-	fn check(&self) -> Result<(), Error> {
-		if !self.segwit_active {
-			return Ok(());
-		}
-
-		// check witness from coinbase transaction
-		let mut has_witness = false;
-		if let Some(coinbase) = self.block.transactions.first() {
-			let commitment = coinbase.raw.outputs.iter().rev()
-				.find(|output| script::is_witness_commitment_script(&output.script_pubkey));
-			if let Some(commitment) = commitment {
-				let witness_merkle_root = self.block.raw().witness_merkle_root();
-				if coinbase.raw.inputs.get(0).map(|i| i.script_witness.len()).unwrap_or_default() != 1 ||
-					coinbase.raw.inputs[0].script_witness[0].len() != 32 {
-					return Err(Error::WitnessInvalidNonceSize);
-				}
-
-				let mut stream = Stream::new();
-				stream.append(&witness_merkle_root);
-				stream.append_slice(&coinbase.raw.inputs[0].script_witness[0]);
-				let hash_witness = dhash256(&stream.out());
-
-				if hash_witness != commitment.script_pubkey[6..].into() {
-					return Err(Error::WitnessMerkleCommitmentMismatch);
-				}
-
-				has_witness = true;
-			}
-		}
-
-		// witness commitment is required when block contains transactions with witness
-		if !has_witness && self.block.transactions.iter().any(|tx| tx.raw.has_witness()) {
-			return Err(Error::UnexpectedWitness);
-		}
-
-		Ok(())
 	}
 }
 

@@ -139,9 +139,24 @@ impl TransactionInputSigner {
 		}
 	}
 
+	pub fn signed_input(
+		&self,
+		keypair: &KeyPair,
+		input_index: usize,
+		input_amount: u64,
+		script_pubkey: &Script,
+		sigversion: SignatureVersion,
+		sighash: u32,
+	) -> TransactionInput {
+		match sigversion {
+			SignatureVersion::WitnessV0 => self.signed_input_witness(keypair, input_index, input_amount, script_pubkey, sigversion, sighash),
+			_ => self.signed_input_base(keypair, input_index, input_amount, script_pubkey, sigversion, sighash),
+		}
+	}
+
 	/// input_index - index of input to sign
 	/// script_pubkey - script_pubkey of input's previous_output pubkey
-	pub fn signed_input(
+	fn signed_input_base(
 		&self,
 		keypair: &KeyPair,
 		input_index: usize,
@@ -165,6 +180,31 @@ impl TransactionInputSigner {
 			sequence: unsigned_input.sequence,
 			script_sig: script_sig.to_bytes(),
 			script_witness: vec![],
+		}
+	}
+
+	fn signed_input_witness(
+		&self,
+		keypair: &KeyPair,
+		input_index: usize,
+		input_amount: u64,
+		script_pubkey: &Script,
+		sigversion: SignatureVersion,
+		sighash: u32,
+	) -> TransactionInput {
+		let hash = self.signature_hash(input_index, input_amount, script_pubkey, sigversion, sighash);
+
+		let mut signature: Vec<u8> = keypair.private().sign(&hash).unwrap().into();
+		signature.push(sighash as u8);
+
+		let pubkey = Bytes::from(&keypair.public()[..]);
+
+		let unsigned_input = &self.inputs[input_index];
+		TransactionInput {
+			previous_output: unsigned_input.previous_output.clone(),
+			sequence: unsigned_input.sequence,
+			script_sig: Bytes::default(),
+			script_witness: vec![signature.into(), pubkey]
 		}
 	}
 
@@ -249,7 +289,7 @@ impl TransactionInputSigner {
 		stream.append(&self.inputs[input_index].sequence);
 		stream.append(&hash_outputs);
 		stream.append(&self.lock_time);
-		stream.append(&sighashtype); // this also includes 24-bit fork id. which is 0 for BitcoinCash
+		stream.append(&sighashtype);
 		let out = stream.out();
 		dhash256(&out)
 	}

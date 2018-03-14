@@ -74,6 +74,7 @@ impl WalletManager {
         info!("wallet balance is {}", balance);
     }
 
+    //TODO needs refactoring so it not just returns in case of error
     fn send_cash(&self, recipient: Address, amount: u64) {
         if self.wallets.is_empty() {
             error!("No wallet was created or loaded. Use `walletcreate` or `walletfromkey` to create one.");
@@ -85,7 +86,7 @@ impl WalletManager {
         let unspent_out_points = self.storage
             .transaction_with_output_address(&user_address_hash);
         if unspent_out_points.is_empty() {
-            error!("No unspent outputs found. I.e. no money on current address"); //TODO
+            error!("No unspent outputs found. I.e. no money on current address");
             return;
         }
         let unspent_outputs: Vec<TransactionOutput> = unspent_out_points
@@ -94,14 +95,14 @@ impl WalletManager {
             .collect();
 
         if unspent_outputs[0].value < amount {
-            error!("Not enough money on first input."); //TODO
+            error!("Not enough money on first input.");
             return;
         }
 
         let mut outputs: Vec<TransactionOutput> = vec![
             TransactionOutput {
                 value: amount,
-                script_pubkey: Builder::build_p2pkh(&recipient.hash).to_bytes(),
+                script_pubkey: Builder::build_p2wpkh(&recipient.hash).to_bytes(),
             },
         ];
 
@@ -111,7 +112,7 @@ impl WalletManager {
         {
             outputs.push(TransactionOutput {
                 value: leftover,
-                script_pubkey: Builder::build_p2pkh(&user_address_hash).to_bytes(),
+                script_pubkey: Builder::build_p2wpkh(&user_address_hash).to_bytes(),
             });
         }
 
@@ -123,7 +124,7 @@ impl WalletManager {
             inputs: vec![
                 TransactionInput {
                     previous_output: unspent_out_points[0].clone(),
-                    script_sig: unspent_outputs[0].script_pubkey.clone(),
+                    script_sig: Default::default(),
                     sequence: SEQUENCE_LOCKTIME_DISABLE_FLAG,
                     script_witness: vec![],
                 },
@@ -133,15 +134,28 @@ impl WalletManager {
         };
 
         let signer: TransactionInputSigner = transaction.into();
-        let prevout_script_pubkey: Script = unspent_outputs[0].script_pubkey.clone().into();
-        //TODO find out if we need to use witness hashing here
-        //NOTE input_amount is unused if signing by original procedure
+        let prevout_script = Script::new(unspent_outputs[0].script_pubkey.clone());
+    	let prevout_witness = prevout_script.parse_witness_program();
+        if prevout_witness == None {
+            error!("Cannot parse previous output witness");
+            return;
+        }
+
+        let prevout_witness_version = prevout_witness.unwrap().0;
+        if prevout_witness_version != 0 {
+            error!("Previous output witness version is too high and cannot be handled");
+            return;           
+        }
+
+        let prevout_witness_program = prevout_witness.unwrap().1;
+        let script_pubkey = Builder::build_p2pkh(&prevout_witness_program.into());
+
         let signed_input = signer.signed_input(
             &wallet.keys,
             /*input_index*/ 0,
-            /*input_amount*/ 0,
-            &prevout_script_pubkey,
-            SignatureVersion::Base,
+            unspent_outputs[0].value,
+            &script_pubkey,
+            SignatureVersion::WitnessV0,
             SighashBase::All.into(),
         );
 
