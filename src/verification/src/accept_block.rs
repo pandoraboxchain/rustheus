@@ -18,6 +18,7 @@ pub struct BlockAcceptor<'a> {
 	pub sigops: BlockSigops<'a>,
 	pub coinbase_claim: BlockCoinbaseClaim<'a>,
 	pub coinbase_script: BlockCoinbaseScript<'a>,
+	pub witness: BlockWitness<'a>,
 }
 
 impl<'a> BlockAcceptor<'a> {
@@ -35,6 +36,7 @@ impl<'a> BlockAcceptor<'a> {
 			coinbase_script: BlockCoinbaseScript::new(block, consensus, height),
 			coinbase_claim: BlockCoinbaseClaim::new(block, store, height),
 			sigops: BlockSigops::new(block, store, consensus, height),
+			witness: BlockWitness::new(block),
 		}
 	}
 
@@ -44,6 +46,7 @@ impl<'a> BlockAcceptor<'a> {
 		self.serialized_size.check()?;
 		self.coinbase_claim.check()?;
 		self.coinbase_script.check()?;
+		self.witness.check()?;
 		Ok(())
 	}
 }
@@ -263,6 +266,29 @@ impl<'a> BlockCoinbaseScript<'a> {
 		} else {
 			Err(Error::CoinbaseScript)
 		}
+	}
+}
+
+pub struct BlockWitness<'a> {
+	block: CanonBlock<'a>,
+}
+
+impl<'a> BlockWitness<'a> {
+	fn new(block: CanonBlock<'a>) -> Self {
+		BlockWitness {
+			block: block,
+		}
+	}
+
+	fn check(&self) -> Result<(), Error> {
+		let witness_from_header = &self.block.header().raw.witness_merkle_root_hash;
+		let witness_calculated = self.block.raw().witness_merkle_root();
+
+		if witness_calculated != *witness_from_header {
+			return Err(Error::WitnessMerkleCommitmentMismatch);
+		}
+
+		Ok(())
 	}
 }
 

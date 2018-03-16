@@ -79,6 +79,7 @@ impl NetworkParams {
 						version: 1,
 						previous_header_hash: 0.into(),
 						merkle_root_hash: 0.into(),
+						witness_merkle_root_hash: 0.into(),
 						time: 1234567,
 						bits: 5.into(),
 						nonce: 6,
@@ -87,6 +88,7 @@ impl NetworkParams {
 				};
 
 				block.block_header.merkle_root_hash = block.merkle_root();
+				block.block_header.witness_merkle_root_hash = block.witness_merkle_root();
 
 				block
 			}

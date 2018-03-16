@@ -74,6 +74,7 @@ impl Executor {
             version: 1,
             previous_header_hash: self.storage.best_block().hash,
             merkle_root_hash: DHash256::default().finish(),
+            witness_merkle_root_hash: Default::default(),
             time: time_since_the_epoch.as_secs() as u32,
             bits: 5.into(),
             nonce: 6,
@@ -91,6 +92,7 @@ impl Executor {
 
         //recalculate merkle root
         block.block_header.merkle_root_hash = block.merkle_root();
+        block.block_header.witness_merkle_root_hash = block.witness_merkle_root();
 
         let block_message = BlockMessage { block };
         self.message_wrapper.broadcast(&block_message);

@@ -62,7 +62,7 @@ impl IndexedBlock {
 	}
 
 	pub fn merkle_root(&self) -> H256 {
-		self.witness_merkle_root()
+		merkle_root(&self.transactions.iter().map(|tx| &tx.hash).collect::<Vec<&H256>>())
 	}
 
 	pub fn witness_merkle_root(&self) -> H256 {

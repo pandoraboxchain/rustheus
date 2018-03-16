@@ -10,6 +10,7 @@ pub struct BlockHeader {
 	pub version: u32,
 	pub previous_header_hash: H256,
 	pub merkle_root_hash: H256,
+	pub witness_merkle_root_hash: H256,
 	pub time: u32,
 	pub bits: Compact,
 	pub nonce: u32,
@@ -27,6 +28,7 @@ impl fmt::Debug for BlockHeader {
 			.field("version", &self.version)
 			.field("previous_header_hash", &self.previous_header_hash.reversed())
 			.field("merkle_root_hash", &self.merkle_root_hash.reversed())
+			.field("witness_merkle_root_hash", &self.witness_merkle_root_hash.reversed())
 			.field("time", &self.time)
 			.field("bits", &self.bits)
 			.field("nonce", &self.nonce)
@@ -51,6 +53,7 @@ mod tests {
 			version: 1,
 			previous_header_hash: [2; 32].into(),
 			merkle_root_hash: [3; 32].into(),
+			witness_merkle_root_hash: [4; 32].into(),
 			time: 4,
 			bits: 5.into(),
 			nonce: 6,
@@ -88,6 +91,7 @@ mod tests {
 			version: 1,
 			previous_header_hash: [2; 32].into(),
 			merkle_root_hash: [3; 32].into(),
+			witness_merkle_root_hash: [4; 32].into(),
 			time: 4,
 			bits: 5.into(),
 			nonce: 6,

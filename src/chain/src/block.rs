@@ -28,7 +28,8 @@ impl Block {
 
 	/// Returns block's merkle root.
 	pub fn merkle_root(&self) -> H256 {
-		self.witness_merkle_root()
+		let hashes = self.transactions.iter().map(Transaction::hash).collect::<Vec<H256>>();
+		merkle_root(&hashes)
 	}
 
 	/// Returns block's witness merkle root.
