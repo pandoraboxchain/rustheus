@@ -53,8 +53,6 @@
 
 extern crate time;
 #[macro_use]
-extern crate lazy_static;
-#[macro_use]
 extern crate log;
 extern crate parking_lot;
 extern crate rayon;
@@ -69,7 +67,6 @@ extern crate bitcrypto as crypto;
 
 pub mod constants;
 mod canon;
-mod deployments;
 mod duplex_store;
 mod error;
 mod sigops;
@@ -109,7 +106,6 @@ pub use error::{Error, TransactionError};
 pub use sigops::transaction_sigops;
 pub use timestamp::median_timestamp;
 pub use work::{work_required, is_valid_proof_of_work, is_valid_proof_of_work_hash, block_reward_satoshi};
-pub use deployments::Deployments;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 /// Blocks verification level.

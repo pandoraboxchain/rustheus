@@ -1,12 +1,9 @@
 use params::{ConsensusParams, ConsensusFork};
-use crypto::dhash256;
 use db::{TransactionOutputProvider, BlockHeaderProvider};
 use script;
-use ser::Stream;
 use sigops::{transaction_sigops, transaction_sigops_cost}	;
 use work::block_reward_satoshi;
 use duplex_store::DuplexTransactionOutputProvider;
-use deployments::BlockDeployments;
 use canon::CanonBlock;
 use error::{Error, TransactionError};
 use timestamp::median_timestamp;
@@ -27,13 +24,12 @@ impl<'a> BlockAcceptor<'a> {
 		consensus: &'a ConsensusParams,
 		block: CanonBlock<'a>,
 		height: u32,
-		deployments: &'a BlockDeployments<'a>,
 		headers: &'a BlockHeaderProvider,
 	) -> Self {
 		BlockAcceptor {
-			finality: BlockFinality::new(block, height, deployments, headers),
-			serialized_size: BlockSerializedSize::new(block, consensus, deployments, height),
-			coinbase_script: BlockCoinbaseScript::new(block, consensus, height),
+			finality: BlockFinality::new(block, height, headers),
+			serialized_size: BlockSerializedSize::new(block, consensus, height),
+			coinbase_script: BlockCoinbaseScript::new(block, height),
 			coinbase_claim: BlockCoinbaseClaim::new(block, store, height),
 			sigops: BlockSigops::new(block, store, consensus, height),
 			witness: BlockWitness::new(block),
@@ -59,13 +55,12 @@ pub struct BlockFinality<'a> {
 }
 
 impl<'a> BlockFinality<'a> {
-	fn new(block: CanonBlock<'a>, height: u32, deployments: &'a BlockDeployments<'a>, headers: &'a BlockHeaderProvider) -> Self {
-		let csv_active = deployments.csv();
+	fn new(block: CanonBlock<'a>, height: u32, headers: &'a BlockHeaderProvider) -> Self {
 
 		BlockFinality {
 			block: block,
 			height: height,
-			csv_active: csv_active,
+			csv_active: true,
 			headers: headers,
 		}
 	}
@@ -93,8 +88,8 @@ pub struct BlockSerializedSize<'a> {
 }
 
 impl<'a> BlockSerializedSize<'a> {
-	fn new(block: CanonBlock<'a>, consensus: &'a ConsensusParams, deployments: &'a BlockDeployments<'a>, height: u32) -> Self {
-		let segwit_active = deployments.segwit();
+	fn new(block: CanonBlock<'a>, consensus: &'a ConsensusParams, height: u32) -> Self {
+		let segwit_active = true;
 
 		BlockSerializedSize {
 			block: block,
@@ -244,7 +239,7 @@ pub struct BlockCoinbaseScript<'a> {
 }
 
 impl<'a> BlockCoinbaseScript<'a> {
-	fn new(block: CanonBlock<'a>, consensus_params: &ConsensusParams, height: u32) -> Self {
+	fn new(block: CanonBlock<'a>, height: u32) -> Self {
 		BlockCoinbaseScript {
 			block: block,
 			height: height,

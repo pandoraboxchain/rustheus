@@ -1,11 +1,7 @@
-use primitives::hash::H256;
-use primitives::bytes::Bytes;
 use db::{TransactionMetaProvider, TransactionOutputProvider};
-use params::{ConsensusParams, ConsensusFork};
+use params::{ConsensusParams};
 use script::{Script, verify_script, VerificationFlags, TransactionSignatureChecker, TransactionInputSigner, SignatureVersion};
 use duplex_store::DuplexTransactionOutputProvider;
-use deployments::BlockDeployments;
-use script::Builder;
 use sigops::transaction_sigops;
 use canon::CanonTransaction;
 use constants::{COINBASE_MATURITY};
@@ -13,12 +9,10 @@ use error::TransactionError;
 use VerificationLevel;
 
 pub struct TransactionAcceptor<'a> {
-	pub premature_witness: TransactionPrematureWitness<'a>,
 	pub missing_inputs: TransactionMissingInputs<'a>,
 	pub maturity: TransactionMaturity<'a>,
 	pub overspent: TransactionOverspent<'a>,
 	pub double_spent: TransactionDoubleSpend<'a>,
-	pub return_replay_protection: TransactionReturnReplayProtection<'a>,
 	pub eval: TransactionEval<'a>,
 }
 
@@ -29,36 +23,29 @@ impl<'a> TransactionAcceptor<'a> {
 		// previous transaction outputs
 		// in case of block validation, that's database and currently processed block
 		output_store: DuplexTransactionOutputProvider<'a>,
-		consensus: &'a ConsensusParams,
 		transaction: CanonTransaction<'a>,
 		verification_level: VerificationLevel,
-		block_hash: &'a H256,
 		height: u32,
-		time: u32,
+		_time: u32,
 		transaction_index: usize,
-		deployments: &'a BlockDeployments<'a>,
 	) -> Self {
 		trace!(target: "verification", "Tx verification {}", transaction.hash.to_reversed_str());
 		TransactionAcceptor {
-			premature_witness: TransactionPrematureWitness::new(transaction, deployments),
 			missing_inputs: TransactionMissingInputs::new(transaction, output_store, transaction_index),
 			maturity: TransactionMaturity::new(transaction, meta_store, height),
 			overspent: TransactionOverspent::new(transaction, output_store),
 			double_spent: TransactionDoubleSpend::new(transaction, output_store),
-			return_replay_protection: TransactionReturnReplayProtection::new(transaction, consensus, height),
-			eval: TransactionEval::new(transaction, output_store, consensus, verification_level, height, time, deployments),
+			eval: TransactionEval::new(transaction, output_store, verification_level),
 		}
 	}
 
 	pub fn check(&self) -> Result<(), TransactionError> {
-		try!(self.premature_witness.check());
 		try!(self.missing_inputs.check());
 		//TODO for now there is no maturity check because no one is mining
 		//but think of enabling it later or through some input parameter
 		//try!(self.maturity.check()); 
 		try!(self.overspent.check());
 		try!(self.double_spent.check());
-		try!(self.return_replay_protection.check());
 		try!(self.eval.check());
 		Ok(())
 	}
@@ -70,7 +57,6 @@ pub struct MemoryPoolTransactionAcceptor<'a> {
 	pub overspent: TransactionOverspent<'a>,
 	pub sigops: TransactionSigops<'a>,
 	pub double_spent: TransactionDoubleSpend<'a>,
-	pub return_replay_protection: TransactionReturnReplayProtection<'a>,
 	pub eval: TransactionEval<'a>,
 }
 
@@ -83,8 +69,7 @@ impl<'a> MemoryPoolTransactionAcceptor<'a> {
 		consensus: &'a ConsensusParams,
 		transaction: CanonTransaction<'a>,
 		height: u32,
-		time: u32,
-		deployments: &'a BlockDeployments<'a>,
+		_time: u32,
 	) -> Self {
 		trace!(target: "verification", "Mempool-Tx verification {}", transaction.hash.to_reversed_str());
 		let transaction_index = 0;
@@ -93,10 +78,9 @@ impl<'a> MemoryPoolTransactionAcceptor<'a> {
 			missing_inputs: TransactionMissingInputs::new(transaction, output_store, transaction_index),
 			maturity: TransactionMaturity::new(transaction, meta_store, height),
 			overspent: TransactionOverspent::new(transaction, output_store),
-			sigops: TransactionSigops::new(transaction, output_store, consensus, max_block_sigops, time),
+			sigops: TransactionSigops::new(transaction, output_store, max_block_sigops),
 			double_spent: TransactionDoubleSpend::new(transaction, output_store),
-			return_replay_protection: TransactionReturnReplayProtection::new(transaction, consensus, height),
-			eval: TransactionEval::new(transaction, output_store, consensus, VerificationLevel::Full, height, time, deployments),
+			eval: TransactionEval::new(transaction, output_store, VerificationLevel::Full),
 		}
 	}
 
@@ -110,7 +94,6 @@ impl<'a> MemoryPoolTransactionAcceptor<'a> {
 		try!(self.overspent.check());
 		try!(self.sigops.check());
 		try!(self.double_spent.check());
-		try!(self.return_replay_protection.check());
 		try!(self.eval.check());
 		Ok(())
 	}
@@ -146,12 +129,14 @@ impl<'a> TransactionMissingInputs<'a> {
 	}
 }
 
+#[allow(dead_code)]
 pub struct TransactionMaturity<'a> {
 	transaction: CanonTransaction<'a>,
 	store: &'a TransactionMetaProvider,
 	height: u32,
 }
 
+#[allow(dead_code)]
 impl<'a> TransactionMaturity<'a> {
 	fn new(transaction: CanonTransaction<'a>, store: &'a TransactionMetaProvider, height: u32) -> Self {
 		TransactionMaturity {
@@ -212,19 +197,15 @@ impl<'a> TransactionOverspent<'a> {
 pub struct TransactionSigops<'a> {
 	transaction: CanonTransaction<'a>,
 	store: DuplexTransactionOutputProvider<'a>,
-	consensus_params: &'a ConsensusParams,
 	max_sigops: usize,
-	time: u32,
 }
 
 impl<'a> TransactionSigops<'a> {
-	fn new(transaction: CanonTransaction<'a>, store: DuplexTransactionOutputProvider<'a>, consensus_params: &'a ConsensusParams, max_sigops: usize, time: u32) -> Self {
+	fn new(transaction: CanonTransaction<'a>, store: DuplexTransactionOutputProvider<'a>, max_sigops: usize) -> Self {
 		TransactionSigops {
 			transaction: transaction,
 			store: store,
-			consensus_params: consensus_params,
 			max_sigops: max_sigops,
-			time: time,
 		}
 	}
 
@@ -256,11 +237,7 @@ impl<'a> TransactionEval<'a> {
 	fn new(
 		transaction: CanonTransaction<'a>,
 		store: DuplexTransactionOutputProvider<'a>,
-		params: &ConsensusParams,
 		verification_level: VerificationLevel,
-		height: u32,
-		time: u32,
-		deployments: &'a BlockDeployments,
 	) -> Self {
 		let verify_p2sh = true;
 		let verify_strictenc = false; //TODO check if we should verify strictenc
@@ -268,8 +245,8 @@ impl<'a> TransactionEval<'a> {
 		let verify_dersig = true;
 		let signature_version = SignatureVersion::WitnessV0;
 
-		let verify_checksequence = deployments.csv();
-		let verify_witness = deployments.segwit();
+		let verify_checksequence = true;
+		let verify_witness = true;
 		let verify_nulldummy = verify_witness;
 
 		TransactionEval {
@@ -356,51 +333,6 @@ impl<'a> TransactionDoubleSpend<'a> {
 			}
 		}
 		Ok(())
-	}
-}
-
-pub struct TransactionReturnReplayProtection<'a> {
-	transaction: CanonTransaction<'a>,
-	consensus: &'a ConsensusParams,
-	height: u32,
-}
-
-impl<'a> TransactionReturnReplayProtection<'a> {
-	fn new(transaction: CanonTransaction<'a>, consensus: &'a ConsensusParams, height: u32) -> Self {
-		TransactionReturnReplayProtection {
-			transaction: transaction,
-			consensus: consensus,
-			height: height,
-		}
-	}
-
-	//TODO is this check needed?
-	fn check(&self) -> Result<(), TransactionError> {
-		Ok(())
-	}
-}
-
-pub struct TransactionPrematureWitness<'a> {
-	transaction: CanonTransaction<'a>,
-	segwit_active: bool,
-}
-
-impl<'a> TransactionPrematureWitness<'a> {
-	fn new(transaction: CanonTransaction<'a>, deployments: &'a BlockDeployments<'a>) -> Self {
-		let segwit_active = deployments.segwit();
-
-		TransactionPrematureWitness {
-			transaction: transaction,
-			segwit_active: segwit_active,
-		}
-	}
-
-	fn check(&self) -> Result<(), TransactionError> {
-		if !self.segwit_active && (*self.transaction).raw.has_witness() {
-			Err(TransactionError::PrematureWitness)
-		} else {
-			Ok(())
-		}
 	}
 }
 

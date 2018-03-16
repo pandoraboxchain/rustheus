@@ -25,12 +25,13 @@ impl<'a> HeaderVerifier<'a> {
 		Ok(())
 	}
 }
-
+#[allow(dead_code)] //TODO
 pub struct HeaderProofOfWork<'a> {
 	header: &'a IndexedBlockHeader,
 	max_work_bits: Compact,
 }
 
+#[allow(dead_code)] //TODO
 impl<'a> HeaderProofOfWork<'a> {
 	fn new(header: &'a IndexedBlockHeader, network: NetworkParams) -> Self {
 		HeaderProofOfWork {
@@ -48,12 +49,14 @@ impl<'a> HeaderProofOfWork<'a> {
 	}
 }
 
+#[allow(dead_code)]
 pub struct HeaderTimestamp<'a> {
 	header: &'a IndexedBlockHeader,
 	current_time: u32,
 	max_future: u32,
 }
 
+#[allow(dead_code)]
 impl<'a> HeaderTimestamp<'a> {
 	fn new(header: &'a IndexedBlockHeader, current_time: u32, max_future: u32) -> Self {
 		HeaderTimestamp {

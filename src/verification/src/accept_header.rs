@@ -3,11 +3,9 @@ use db::BlockHeaderProvider;
 use canon::CanonHeader;
 use error::Error;
 use work::work_required;
-use deployments::BlockDeployments;
 use timestamp::median_timestamp;
 
 pub struct HeaderAcceptor<'a> {
-	pub version: HeaderVersion<'a>,
 	pub work: HeaderWork<'a>,
 	pub median_timestamp: HeaderMedianTimestamp<'a>,
 }
@@ -18,42 +16,17 @@ impl<'a> HeaderAcceptor<'a> {
 		consensus: &'a ConsensusParams,
 		header: CanonHeader<'a>,
 		height: u32,
-		deployments: &'a BlockDeployments<'a>,
 	) -> Self {
 		HeaderAcceptor {
 			work: HeaderWork::new(header, store, height, consensus),
-			median_timestamp: HeaderMedianTimestamp::new(header, store, deployments),
-			version: HeaderVersion::new(header, height, consensus),
+			median_timestamp: HeaderMedianTimestamp::new(header, store),
 		}
 	}
 
 	pub fn check(&self) -> Result<(), Error> {
-		try!(self.version.check());
 		try!(self.work.check());
 		try!(self.median_timestamp.check());
 		Ok(())
-	}
-}
-
-/// Conforms to BIP90
-/// https://github.com/bitcoin/bips/blob/master/bip-0090.mediawiki
-pub struct HeaderVersion<'a> {
-	header: CanonHeader<'a>,
-	height: u32,
-	consensus_params: &'a ConsensusParams,
-}
-
-impl<'a> HeaderVersion<'a> {
-	fn new(header: CanonHeader<'a>, height: u32, consensus_params: &'a ConsensusParams) -> Self {
-		HeaderVersion {
-			header: header,
-			height: height,
-			consensus_params: consensus_params,
-		}
-	}
-
-	fn check(&self) -> Result<(), Error> {
-			Ok(())
 	}
 }
 
@@ -89,21 +62,18 @@ impl<'a> HeaderWork<'a> {
 pub struct HeaderMedianTimestamp<'a> {
 	header: CanonHeader<'a>,
 	store: &'a BlockHeaderProvider,
-	active: bool,
 }
 
 impl<'a> HeaderMedianTimestamp<'a> {
-	fn new(header: CanonHeader<'a>, store: &'a BlockHeaderProvider, deployments: &'a BlockDeployments<'a>) -> Self {
-		let active = deployments.csv();
+	fn new(header: CanonHeader<'a>, store: &'a BlockHeaderProvider) -> Self {
 		HeaderMedianTimestamp {
 			header: header,
-			store: store,
-			active: active,
+			store: store
 		}
 	}
 
 	fn check(&self) -> Result<(), Error> {
-		if self.active && self.header.raw.time <= median_timestamp(&self.header.raw, self.store) {
+		if self.header.raw.time <= median_timestamp(&self.header.raw, self.store) {
 			Err(Error::Timestamp)
 		} else {
 			Ok(())

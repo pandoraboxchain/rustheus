@@ -2,8 +2,8 @@ use std::cmp;
 use primitives::compact::Compact;
 use primitives::hash::H256;
 use primitives::bigint::U256;
-use chain::{IndexedBlockHeader, BlockHeader};
-use params::{NetworkParams, ConsensusParams, ConsensusFork};
+use chain::BlockHeader;
+use params::{NetworkParams, ConsensusParams};
 use db::{BlockHeaderProvider, BlockRef};
 
 use constants::{

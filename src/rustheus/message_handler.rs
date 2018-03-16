@@ -67,7 +67,6 @@ impl MessageHandler {
             Ok(tx_output_provider) => {
                 let height = self.store.best_block().number;
                 match self.verifier.verify_mempool_transaction(
-                    self.store.as_block_header_provider(),
                     &tx_output_provider,
                     height,
                     /*time*/ 0,
@@ -176,7 +175,7 @@ impl MessageHandler {
         header: MessageHeader,
         payload: &[u8],
     ) -> Result<(), Error> {
-        if checksum(&payload) != header.checksum {
+        if checksum(payload) != header.checksum {
             return Err(Error::InvalidChecksum);
         }
 
