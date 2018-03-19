@@ -1,6 +1,7 @@
 use chain::{Block, BlockHeader, Transaction, TransactionInput, TransactionOutput};
+use chain::IndexedBlock;
 use crypto::DHash256;
-use std::sync::mpsc::{self, Receiver, Sender};
+use std::sync::mpsc::Receiver;
 use memory_pool::MemoryPoolRef;
 use memory_pool::MemoryPoolOrderingStrategy as OrderingStrategy;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -10,11 +11,13 @@ use db::SharedStore;
 use keys::Address;
 use script::Builder;
 use primitives::hash::H256;
+use db::Error;
 
 type BlockHeight = u32;
 
 #[derive(Debug, PartialEq)]
-pub enum ExecutorTask {
+pub enum Task {
+    AddVerifiedBlock(IndexedBlock),
     SignBlock(Address),
     RequestLatestBlocks(),
 
@@ -24,26 +27,25 @@ pub enum ExecutorTask {
 }
 
 pub struct Executor {
-    task_receiver: Receiver<ExecutorTask>,
+    task_receiver: Receiver<Task>,
     message_wrapper: MessageWrapper,
     mempool: MemoryPoolRef,
-    storage: SharedStore,
+    store: SharedStore,
 }
 
 impl Executor {
     pub fn new(
         mempool: MemoryPoolRef,
-        storage: SharedStore,
+        store: SharedStore,
+        task_receiver: Receiver<Task>,
         message_wrapper: MessageWrapper,
-    ) -> (Self, Sender<ExecutorTask>) {
-        let (task_sender, task_receiver) = mpsc::channel();
-        let executor = Executor {
+    ) -> Self {
+        Executor {
             task_receiver,
             message_wrapper,
             mempool,
-            storage,
-        };
-        (executor, task_sender)
+            store,
+        }
     }
 
     pub fn run(&mut self) {
@@ -51,12 +53,11 @@ impl Executor {
             if let Ok(task) = self.task_receiver.recv() {
                 info!("task received, it is {:?}", task);
                 match task {
-                    ExecutorTask::SignBlock(coinbase_recipient) => {
-                        self.sign_block(coinbase_recipient)
-                    }
-                    ExecutorTask::GetTransactionMeta(hash) => self.get_transaction_meta(hash),
-                    ExecutorTask::GetBlockHash(height) => self.get_block_hash(height),
-                    ExecutorTask::RequestLatestBlocks() => self.request_latest_blocks(),
+                    Task::SignBlock(coinbase_recipient) => self.sign_block(coinbase_recipient),
+                    Task::GetTransactionMeta(hash) => self.get_transaction_meta(hash),
+                    Task::GetBlockHash(height) => self.get_block_hash(height),
+                    Task::RequestLatestBlocks() => self.request_latest_blocks(),
+                    Task::AddVerifiedBlock(block) => self.add_verified_block(block),
                 }
             } else {
                 break;
@@ -72,7 +73,7 @@ impl Executor {
 
         let header = BlockHeader {
             version: 1,
-            previous_header_hash: self.storage.best_block().hash,
+            previous_header_hash: self.store.best_block().hash,
             merkle_root_hash: DHash256::default().finish(),
             witness_merkle_root_hash: Default::default(),
             time: time_since_the_epoch.as_secs() as u32,
@@ -94,12 +95,38 @@ impl Executor {
         block.block_header.merkle_root_hash = block.merkle_root();
         block.block_header.witness_merkle_root_hash = block.witness_merkle_root();
 
+        self.add_and_canonize_block(block.clone().into())
+            .expect("Error inserting block");
+
         let block_message = BlockMessage { block };
         self.message_wrapper.broadcast(&block_message);
     }
 
+    fn add_and_canonize_block(&self, block: IndexedBlock) -> Result<(), Error> {
+        let hash = block.hash().clone();
+        match self.store.insert(block) {
+            Ok(_) => self.store.canonize(&hash),
+            Err(err) => Err(err),
+        }
+    }
+
+    fn add_verified_block(&self, block: IndexedBlock) {
+        let hash = block.hash().clone();
+        let transactions = block.transactions.clone();
+        match self.add_and_canonize_block(block) {
+            Ok(_) => {
+                info!("Block inserted and canonized with hash {}", hash);
+                let mut mempool = self.mempool.write().unwrap();
+                for transaction in transactions {
+                    mempool.remove_by_hash(&transaction.hash);
+                }
+            }
+            Err(err) => error!("Cannot canonize received block due to {:?}", err),
+        }
+    }
+
     fn create_coinbase(&self, recipient: Address) -> Transaction {
-        let block_height = self.storage.best_block().number + 1;
+        let block_height = self.store.best_block().number + 1;
 
         //add block height as coinbase prefix
         let prefix = Builder::default()
@@ -120,14 +147,14 @@ impl Executor {
     }
 
     fn get_transaction_meta(&self, hash: H256) {
-        match self.storage.transaction_meta(&hash) {
+        match self.store.transaction_meta(&hash) {
             Some(meta) => debug!("Meta is {:?}", meta),
             None => error!("No transaction with such hash"),
         }
     }
 
     fn get_block_hash(&self, height: u32) {
-        match self.storage.block_hash(height) {
+        match self.store.block_hash(height) {
             Some(hash) => debug!("Block hash is {:?}", hash),
             None => error!("No block at this height"),
         }
@@ -135,14 +162,14 @@ impl Executor {
 
     fn request_latest_blocks(&self) {
         info!("Requesting latest blocks from network");
-        let index = self.storage.best_block().number;
+        let index = self.store.best_block().number;
         let step = 1u32;
         let block_locator_hashes = self.block_locator_hashes_for_storage(index, step);
         let get_blocks_msg = GetBlocks::with_block_locator_hashes(block_locator_hashes);
         self.message_wrapper.broadcast(&get_blocks_msg);
     }
 
-    /// Calculate block locator hashes for storage
+    /// Calculate block locator hashes for store
     fn block_locator_hashes_for_storage(
         &self,
         mut index: BlockHeight,
@@ -151,7 +178,7 @@ impl Executor {
         let mut hashes = vec![];
 
         loop {
-            let block_hash = self.storage
+            let block_hash = self.store
                 .block_hash(index)
                 .expect("private function; index calculated in `block_locator_hashes`; qed");
             hashes.push(block_hash);
@@ -162,7 +189,7 @@ impl Executor {
             if index < step {
                 // always include genesis hash
                 if index != 0 {
-                    let genesis_block_hash = self.storage
+                    let genesis_block_hash = self.store
                         .block_hash(0)
                         .expect("No genesis block found at height 0");
                     hashes.push(genesis_block_hash);

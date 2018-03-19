@@ -43,13 +43,12 @@ mod message_handler;
 mod service;
 mod db_utils;
 mod wallet_manager;
-mod wallet_manager_tasks;
 mod wallet;
 mod responder;
 
 use network::NetworkNode;
 use executor::Executor;
-use executor::ExecutorTask;
+use executor::Task as ExecutorTask;
 use input_listener::InputListener;
 use message_wrapper::MessageWrapper;
 use message_handler::MessageHandler;
@@ -95,6 +94,8 @@ fn main() {
     let (from_network_sender, from_network_receiver) = mpsc::channel();
     let (responder_task_sender, responder_task_receiver) = mpsc::channel();
     let (terminate_sender, terminate_receiver) = mpsc::channel();
+    let (executor_sender, executor_receiver) = mpsc::channel();
+    let (wallet_manager_sender, wallet_manager_receiver) = mpsc::channel();
 
     //setup network requests responder
     let responder = Responder {
@@ -109,6 +110,7 @@ fn main() {
         storage.clone(),
         from_network_receiver,
         responder_task_sender,
+        executor_sender.clone(),
         MessageWrapper::new(to_network_sender.clone()),
     );
 
@@ -121,14 +123,16 @@ fn main() {
     );
 
     //setup wallet task and miscellaneous task executor
-    let (mut wallet_manager, wallet_manager_sender) = WalletManager::new(
+    let mut wallet_manager = WalletManager::new(
         mempool_ref.clone(),
         storage.clone(),
+        wallet_manager_receiver,
         MessageWrapper::new(to_network_sender.clone()),
     );
-    let (mut executor, executor_sender) = Executor::new(
+    let mut executor = Executor::new(
         mempool_ref.clone(),
         storage.clone(),
+        executor_receiver,
         MessageWrapper::new(to_network_sender.clone()),
     );
 
@@ -145,7 +149,7 @@ fn main() {
         terminate_sender,
     );
 
-    //launch services in different threads
+    //launch services in different threads //TODO named threads
     let input_listener_thread = thread::spawn(move || input_listener.run());
     let responder_thread = thread::spawn(move || responder.run());
     let executor_thread = thread::spawn(move || executor.run());

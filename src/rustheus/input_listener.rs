@@ -2,9 +2,9 @@ use shrust::{ExecError, Shell, ShellIO};
 use std::net::TcpListener;
 use std::sync::mpsc::Sender;
 use std::str::FromStr;
-use executor::ExecutorTask;
+use executor::Task as ExecutorTask;
 use keys::{Address, Private};
-use wallet_manager_tasks::Task as WalletTask;
+use wallet_manager::Task as WalletTask;
 use primitives::hash::H256;
 
 //TODO please find a way to do this better. This tuple is needed to access senders from command closures

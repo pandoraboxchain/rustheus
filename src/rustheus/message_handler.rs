@@ -16,15 +16,17 @@ use message_wrapper::MessageWrapper;
 use verification::BackwardsCompatibleChainVerifier as ChainVerifier;
 use verification::{VerificationLevel, Verify};
 use params::{ConsensusFork, ConsensusParams, NetworkParams};
+use executor::Task as ExecutorTask;
 
 pub struct MessageHandler {
-    pub mempool: MemoryPoolRef,
-    pub network_data_receiver: Receiver<PeerAndBytes>,
-    pub store: SharedStore,
-    pub network_responder: Sender<ResponderTask>,
-    pub message_wrapper: MessageWrapper,
+    mempool: MemoryPoolRef,
+    network_data_receiver: Receiver<PeerAndBytes>,
+    store: SharedStore,
+    network_responder: Sender<ResponderTask>,
+    executor_sender: Sender<ExecutorTask>,
+    message_wrapper: MessageWrapper,
 
-    pub verifier: ChainVerifier,
+    verifier: ChainVerifier,
 }
 
 impl MessageHandler {
@@ -33,6 +35,7 @@ impl MessageHandler {
         store: SharedStore,
         network_data_receiver: Receiver<PeerAndBytes>,
         network_responder: Sender<ResponderTask>,
+        executor_sender: Sender<ExecutorTask>,
         message_wrapper: MessageWrapper,
     ) -> Self {
         let verifier = ChainVerifier::new(
@@ -45,6 +48,7 @@ impl MessageHandler {
             store,
             network_data_receiver,
             network_responder,
+            executor_sender,
             message_wrapper,
             verifier,
         }
@@ -52,8 +56,12 @@ impl MessageHandler {
 
     //TODO check inputs other than [0]
     fn on_transaction(&self, message: types::Tx) {
-        //if verifier.verify_mempool_transaction(store.as_block_header_provider(),
         let transaction = message.transaction;
+        let hash = transaction.hash();
+        if self.mempool.read().unwrap().contains(&hash) {
+            trace!(target: "handler", "Received transaction which already exists in mempool. Ignoring");
+            return;
+        }
         match MemoryPoolTransactionOutputProvider::for_transaction(
             self.store.clone(),
             &self.mempool,
@@ -96,26 +104,10 @@ impl MessageHandler {
     fn on_block(&self, message: types::Block) {
         let block: IndexedBlock = message.block.into();
         match self.verifier.verify(VerificationLevel::Full, &block) {
-            Ok(_) => self.add_verified_block(block),
+            Ok(_) => self.executor_sender
+                .send(ExecutorTask::AddVerifiedBlock(block))
+                .unwrap(),
             Err(err) => error!("Invalid block received: {:?}", err),
-        }
-    }
-
-    fn add_verified_block(&self, block: IndexedBlock) {
-        let hash = block.hash().clone();
-        let transactions = block.transactions.clone();
-        match self.store.insert(block) {
-            Ok(_) => match self.store.canonize(&hash) {
-                Ok(_) => {
-                    info!("Block inserted and canonized with hash {}", hash);
-                    let mut mempool = self.mempool.write().unwrap();
-                    for transaction in transactions {
-                        mempool.remove_by_hash(&transaction.hash);
-                    }
-                }
-                Err(err) => error!("Cannot canonize received block due to {:?}", err),
-            },
-            Err(err) => error!("Cannot insert received block due to {:?}", err),
         }
     }
 

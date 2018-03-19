@@ -1,6 +1,5 @@
 use keys::{Address, Private};
-use wallet_manager_tasks::Task;
-use std::sync::mpsc::{self, Receiver, Sender};
+use std::sync::mpsc::{Receiver};
 use service::Service;
 use chain::Transaction;
 use message_wrapper::MessageWrapper;
@@ -14,6 +13,15 @@ use chain::constants::SEQUENCE_LOCKTIME_DISABLE_FLAG;
 //temp
 use chain::{TransactionInput, TransactionOutput};
 
+#[derive(Debug, PartialEq)]
+pub enum Task {
+	CreateWallet(),
+	SendCash(Address, u64),
+	LoadWallet(Private),
+	CalculateBalance(),
+}
+
+
 pub struct WalletManager {
     receiver: Receiver<Task>,
     mempool: MemoryPoolRef,
@@ -26,18 +34,17 @@ impl WalletManager {
     pub fn new(
         mempool: MemoryPoolRef,
         storage: SharedStore,
+        receiver: Receiver<Task>,
         wrapper: MessageWrapper,
-    ) -> (Self, Sender<Task>) {
-        let (sender, receiver) = mpsc::channel();
+    ) -> Self {
         let wallets = vec![];
-        let wallet_manager = WalletManager {
+        WalletManager {
             receiver,
             mempool,
             wrapper,
             wallets,
             storage,
-        };
-        (wallet_manager, sender)
+        }
     }
 
     fn create_wallet(&mut self) {
@@ -162,9 +169,15 @@ impl WalletManager {
         let signed_transaction = Transaction {
             version,
             inputs: vec![signed_input],
-            outputs: outputs,
+            outputs,
             lock_time,
         };
+
+        let hash = signed_transaction.hash();
+        if self.mempool.read().unwrap().contains(&hash) {
+            error!("Exact same transaction already exists in mempool");
+            return;
+        }
 
         let tx = Tx {
             transaction: signed_transaction.clone(),
