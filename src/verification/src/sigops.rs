@@ -1,4 +1,3 @@
-use params::ConsensusFork;
 use chain::Transaction;
 use db::TransactionOutputProvider;
 use script::{Script, ScriptWitness};
@@ -43,7 +42,7 @@ pub fn transaction_sigops_cost(
 	store: &TransactionOutputProvider,
 	sigops: usize,
 ) -> usize {
-	let sigops_cost = sigops * ConsensusFork::witness_scale_factor();
+	let sigops_cost = sigops;
 	let witness_sigops_cost: usize = transaction.inputs.iter()
 		.map(|input| store.transaction_output(&input.previous_output, usize::max_value())
 			.map(|output| witness_sigops(&Script::new(input.script_sig.clone()), &Script::new(output.script_pubkey.clone()), &input.script_witness,))

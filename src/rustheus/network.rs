@@ -149,7 +149,7 @@ impl NetworkNode {
                 info!("Tick");
             }
         }
-        return true;
+        true
     }
 
     fn handle_request(

@@ -39,38 +39,25 @@ impl ConsensusFork {
 		160_000
 	}
 
-	/// Witness scale factor (equal among all forks)
-	pub fn witness_scale_factor() -> usize {
-		4
-	}
-
-	pub fn activation_height(&self) -> u32 {
-		0
-	}
-
 	pub fn max_transaction_size(&self) -> usize {
 		// SegWit: size * 4 <= 4_000_000 ===> max size of tx is still 1_000_000
  		1_000_000
 	}
 
-	pub fn min_block_size(&self, _height: u32) -> usize {
+	pub fn min_block_size(&self) -> usize {
 		0
 	}
 
-	pub fn max_block_size(&self, _height: u32) -> usize {
-		1_000_000
+	pub fn max_block_size(&self) -> usize {
+		4_000_000
 	}
 
 	pub fn max_block_sigops(&self, _height: u32, _block_size: usize) -> usize {
-		20_000
+		80_000
 	}
 
 	pub fn max_block_sigops_cost(&self, _height: u32, _block_size: usize) -> usize {
 		80_000
-	}
-
-	pub fn max_block_weight(&self, _height: u32) -> usize {
-		4_000_000
 	}
 }
 

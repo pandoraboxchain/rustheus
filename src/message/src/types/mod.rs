@@ -9,3 +9,5 @@ pub use self::tx::Tx;
 pub use self::getblocks::GetBlocks;
 pub use self::inv::Inv;
 pub use self::getdata::GetData;
+
+pub use self::getblocks::GETBLOCKS_MAX_RESPONSE_HASHES;

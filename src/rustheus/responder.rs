@@ -26,7 +26,7 @@ impl Responder {
                 Err(_) => {
                     info!("Responder thread ended");
                     break;
-                },
+                }
                 Ok(task) => match task {
                     ResponderTask::GetBlocks(peer_index, message) => {
                         self.respond_get_blocks(peer_index, message)
@@ -43,7 +43,8 @@ impl Responder {
         if let Some(block_height) =
             self.locate_best_common_block(&message.hash_stop, &message.block_locator_hashes)
         {
-            let inventory: Vec<_> = (block_height + 1..block_height + 1 + (500 as BlockHeight))
+            let inventory: Vec<_> = (block_height + 1
+                ..block_height + 1 + (types::GETBLOCKS_MAX_RESPONSE_HASHES as BlockHeight))
                 .map(|block_height| self.storage.block_hash(block_height))
                 .take_while(Option::is_some)
                 .map(Option::unwrap)
@@ -55,7 +56,6 @@ impl Responder {
                 trace!(target: "sync", "'getblocks' response to peer#{} is ready with {} hashes", peer_index, inventory.len());
                 let inventory_msg = types::Inv::with_inventory(inventory);
                 self.message_wrapper.send(peer_index, &inventory_msg);
-            //self.executor.execute(Task::Inventory(peer_index, types::Inv::with_inventory(inventory)));
             } else {
                 trace!(target: "sync", "'getblocks' request from peer#{} is ignored as there are no new blocks for peer", peer_index);
             }

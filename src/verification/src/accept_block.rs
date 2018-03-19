@@ -1,4 +1,4 @@
-use params::{ConsensusParams, ConsensusFork};
+use params::{ConsensusParams};
 use db::{TransactionOutputProvider, BlockHeaderProvider};
 use script;
 use sigops::{transaction_sigops, transaction_sigops_cost}	;
@@ -28,7 +28,7 @@ impl<'a> BlockAcceptor<'a> {
 	) -> Self {
 		BlockAcceptor {
 			finality: BlockFinality::new(block, height, headers),
-			serialized_size: BlockSerializedSize::new(block, consensus, height),
+			serialized_size: BlockSerializedSize::new(block, consensus),
 			coinbase_script: BlockCoinbaseScript::new(block, height),
 			coinbase_claim: BlockCoinbaseClaim::new(block, store, height),
 			sigops: BlockSigops::new(block, store, consensus, height),
@@ -83,41 +83,24 @@ impl<'a> BlockFinality<'a> {
 pub struct BlockSerializedSize<'a> {
 	block: CanonBlock<'a>,
 	consensus: &'a ConsensusParams,
-	height: u32,
-	segwit_active: bool,
 }
 
 impl<'a> BlockSerializedSize<'a> {
-	fn new(block: CanonBlock<'a>, consensus: &'a ConsensusParams, height: u32) -> Self {
-		let segwit_active = true;
-
+	fn new(block: CanonBlock<'a>, consensus: &'a ConsensusParams) -> Self {
 		BlockSerializedSize {
 			block: block,
 			consensus: consensus,
-			height: height,
-			segwit_active: segwit_active,
 		}
 	}
 
 	fn check(&self) -> Result<(), Error> {
 		let size = self.block.size();
 
-		// block size (without witness) is valid for all forks:
-		// before SegWit: it is main check for size
-		// after SegWit: without witness data, block size should be <= 1_000_000
-		if size < self.consensus.fork.min_block_size(self.height) ||
-			size > self.consensus.fork.max_block_size(self.height) {
+		if size < self.consensus.fork.min_block_size() ||
+			size > self.consensus.fork.max_block_size() {
 			return Err(Error::Size(size));
 		}
 
-		// there's no need to define weight for pre-SegWit blocks
-		if self.segwit_active {
-			let size_with_witness = self.block.size_with_witness();
-			let weight = size * (ConsensusFork::witness_scale_factor() - 1) + size_with_witness;
-			if weight > self.consensus.fork.max_block_weight(self.height) {
-				return Err(Error::Weight);
-			}
-		}
 		Ok(())
 	}
 }
