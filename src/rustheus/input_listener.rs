@@ -1,4 +1,4 @@
-use shrust::{ExecError, Shell, ShellIO};
+use shrust::{Shell, ShellIO};
 use std::net::TcpListener;
 use std::sync::mpsc::Sender;
 use std::str::FromStr;
@@ -8,11 +8,12 @@ use wallet_manager::Task as WalletTask;
 use primitives::hash::H256;
 
 //TODO please find a way to do this better. This tuple is needed to access senders from command closures
-type Senders = (Sender<ExecutorTask>, Sender<WalletTask>, Sender<bool>);
+type Senders = (Sender<ExecutorTask>, Sender<WalletTask>);
 
 pub struct InputListener {
     node_number: u32,
     shell: Shell<Senders>,
+    terminator: Sender<bool>,
 }
 
 impl InputListener {
@@ -22,16 +23,15 @@ impl InputListener {
         wallet_manager: Sender<WalletTask>,
         terminator: Sender<bool>,
     ) -> Self {
-        let shell = Self::create_shell(executor, wallet_manager, terminator);
-        InputListener { node_number, shell }
+        let shell = Self::create_shell(executor, wallet_manager);
+        InputListener { node_number, shell, terminator }
     }
 
     fn create_shell(
         executor: Sender<ExecutorTask>,
         wallet_manager: Sender<WalletTask>,
-        terminator: Sender<bool>,
     ) -> Shell<Senders> {
-        let senders = (executor, wallet_manager, terminator);
+        let senders = (executor, wallet_manager);
 
         let mut shell = Shell::new(senders);
         shell.new_command(
@@ -114,16 +114,6 @@ impl InputListener {
             },
         );
         shell.new_command(
-            "shutdown",
-            "Save database and shutdown properly",
-            0,
-            |_, senders, _| {
-                let ref terminator = senders.2;
-                terminator.send(true)?;
-                Err(ExecError::Quit)
-            },
-        );
-        shell.new_command(
             "txmeta",
             "Get transaction meta data for debug",
             1,
@@ -178,6 +168,7 @@ impl InputListener {
                     let mut shell = self.shell.clone();
                     let mut io = ShellIO::new_io(stream);
                     shell.run_loop(&mut io);
+                    self.terminator.send(true).unwrap();
                     break; //TODO halt node as soon as we exit telnet for now
                 }
                 Err(_) => {}

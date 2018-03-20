@@ -8,6 +8,7 @@ extern crate db;
 extern crate keys;
 extern crate lru_time_cache;
 extern crate maidsafe_utilities;
+extern crate memory_pool;
 extern crate message;
 extern crate params;
 extern crate pretty_env_logger;
@@ -17,7 +18,6 @@ extern crate script;
 extern crate serialization as ser;
 extern crate shrust;
 extern crate verification;
-extern crate memory_pool;
 
 #[macro_use]
 extern crate log;
@@ -158,9 +158,9 @@ fn main() {
 
     //prepare to handle Ctrl-C
     ctrlc::set_handler(move || {
-        info!("Interrupted. Your blockchain latest state may not be saved. Please use `shutdown` command to exit properly");
+        info!("Interrupted. Your blockchain latest state may not be saved. Please use `quit` command to exit properly");
         process::exit(0);
-        //TODO send interrupt to input_listener and network_node, so we can exit properly even without `shutdown` command
+        //TODO send interrupt to input_listener and network_node, so we can exit properly even without `quit` command
         //interrupt_sender.send(true).expect("Could not exit properly. Blockchain latest state may be not saved");
     }).expect("Error setting Ctrl-C handler");
 
