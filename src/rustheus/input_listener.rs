@@ -171,7 +171,6 @@ impl InputListener {
         );
 
         let serv = TcpListener::bind(String::from("0.0.0.0:") + &port).expect("Cannot open socket");
-        serv.set_nonblocking(true).expect("Cannot set non-blocking");
 
         for stream in serv.incoming() {
             match stream {
