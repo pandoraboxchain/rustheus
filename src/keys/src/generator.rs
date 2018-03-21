@@ -23,6 +23,6 @@ impl Generator for Random {
 		let context = &SECP256K1;
 		let mut rng = try!(OsRng::new().map_err(|_| Error::FailedKeyGeneration));
 		let (secret, public) = try!(context.generate_keypair(&mut rng));
-		Ok(KeyPair::from_keypair(secret, public, self.network))
+		Ok(KeyPair::from_keypair_compressed(secret, public, self.network))
 	}
 }

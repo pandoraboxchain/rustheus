@@ -59,20 +59,27 @@ impl KeyPair {
 	}
 
 	pub fn from_keypair(sec: key::SecretKey, public: key::PublicKey, network: Network) -> Self {
+		Self::from_secret_and_public(sec, public, network, false)
+	}
+
+	pub fn from_keypair_compressed(sec: key::SecretKey, public: key::PublicKey, network: Network) -> Self {
+		Self::from_secret_and_public(sec, public, network, true)
+	}
+
+	fn from_secret_and_public(sec: key::SecretKey, public: key::PublicKey, network: Network, compressed: bool) -> Self {
 		let context = &SECP256K1;
-		let serialized = public.serialize_vec(context, false);
+		let serialized = public.serialize_vec(context, compressed);
 		let mut secret = Secret::default();
 		secret.copy_from_slice(&sec[0..32]);
-		let mut public = H520::default();
-		public.copy_from_slice(&serialized[0..65]);
+		let public = Public::from_slice(&serialized[..]).expect("Could not parse public key, something must be terribly wrong");
 
 		KeyPair {
 			private: Private {
-				network: network,
-				secret: secret,
-				compressed: false,
+				network,
+				secret,
+				compressed,
 			},
-			public: Public::Normal(public),
+			public
 		}
 	}
 
