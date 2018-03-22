@@ -27,6 +27,7 @@ keys = { path = "src/keys" }
 script = { path = "src/script" }
 verification = { path = "src/verification" }
 memory_pool = { path = "src/mempool" }
+chain_builder =  { path = "src/chain_builder" }
 
 [[bin]]
 path = "src/rustheus/main.rs"
