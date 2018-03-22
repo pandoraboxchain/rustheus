@@ -10,6 +10,7 @@ extern crate primitives;
 extern crate script;
 extern crate serialization as ser;
 extern crate verification;
+extern crate parking_lot;
 
 mod block_assembler;
 mod fee;
