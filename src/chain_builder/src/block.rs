@@ -198,6 +198,7 @@ pub struct BlockHeaderBuilder<F=Identity> {
 	bits: Compact,
 	version: u32,
 	merkle_root: H256,
+	witness_merkle_root: H256,
 }
 
 impl<F> BlockHeaderBuilder<F> where F: Invoke<chain::BlockHeader> {
@@ -207,6 +208,7 @@ impl<F> BlockHeaderBuilder<F> where F: Invoke<chain::BlockHeader> {
 			time: TIMESTAMP_COUNTER.with(|counter| { let val = counter.get(); counter.set(val+1); val }),
 			nonce: 0,
 			merkle_root: 0.into(),
+			witness_merkle_root: 0.into(),
 			parent: 0.into(),
 			bits: Compact::max_value(),
 			// set to 4 to allow creating long test chains
@@ -228,6 +230,11 @@ impl<F> BlockHeaderBuilder<F> where F: Invoke<chain::BlockHeader> {
 		self.merkle_root = merkle_root;
 		self
 	}
+	
+	pub fn witness_merkle_root(mut self, witness_merkle_root: H256) -> Self {
+		self.witness_merkle_root = witness_merkle_root;
+		self
+	}
 
 	pub fn bits(mut self, bits: Compact) -> Self {
 		self.bits = bits;
@@ -247,6 +254,7 @@ impl<F> BlockHeaderBuilder<F> where F: Invoke<chain::BlockHeader> {
 				bits: self.bits,
 				nonce: self.nonce,
 				merkle_root_hash: self.merkle_root,
+				witness_merkle_root_hash: self.witness_merkle_root,
 				version: self.version,
 			}
 		)
