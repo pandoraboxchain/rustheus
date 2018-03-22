@@ -126,29 +126,29 @@ impl Verify for BackwardsCompatibleChainVerifier {
 
 #[cfg(test)]
 mod tests {
-	extern crate test_data;
+	extern crate chain_builder;
 
 	use std::sync::Arc;
 	use chain::IndexedBlock;
 	use db::{BlockChainDatabase, Error as DBError};
-	use params::{Network, ConsensusParams, ConsensusFork};
+	use params::{NetworkParams, ConsensusParams, ConsensusFork};
 	use script;
 	use super::BackwardsCompatibleChainVerifier as ChainVerifier;
 	use {Verify, Error, TransactionError, VerificationLevel};
 
 	#[test]
 	fn verify_orphan() {
-		let storage = Arc::new(BlockChainDatabase::init_test_chain(vec![test_data::genesis().into()]));
-		let b2 = test_data::block_h2().into();
-		let verifier = ChainVerifier::new(storage, ConsensusParams::new(Network::Unitest, ConsensusFork::NoFork));
+		let storage = Arc::new(BlockChainDatabase::init_test_chain(vec![chain_builder::genesis().into()]));
+		let b2 = chain_builder::block_h2().into();
+		let verifier = ChainVerifier::new(storage, ConsensusParams::new(NetworkParams::Mainnet, ConsensusFork::NoFork));
 		assert_eq!(Err(Error::Database(DBError::UnknownParent)), verifier.verify(VerificationLevel::Full, &b2));
 	}
 
 	#[test]
 	fn verify_smoky() {
-		let storage = Arc::new(BlockChainDatabase::init_test_chain(vec![test_data::genesis().into()]));
-		let b1 = test_data::block_h1();
-		let verifier = ChainVerifier::new(storage, ConsensusParams::new(Network::Unitest, ConsensusFork::NoFork));
+		let storage = Arc::new(BlockChainDatabase::init_test_chain(vec![chain_builder::genesis().into()]));
+		let b1 = chain_builder::block_h1();
+		let verifier = ChainVerifier::new(storage, ConsensusParams::new(NetworkParams::Mainnet, ConsensusFork::NoFork));
 		assert!(verifier.verify(VerificationLevel::Full, &b1.into()).is_ok());
 	}
 
@@ -157,17 +157,17 @@ mod tests {
 	fn first_tx() {
 		let storage = BlockChainDatabase::init_test_chain(
 			vec![
-				test_data::block_h0().into(),
-				test_data::block_h1().into(),
+				chain_builder::block_h0().into(),
+				chain_builder::block_h1().into(),
 			]);
-		let b1 = test_data::block_h2();
-		let verifier = ChainVerifier::new(Arc::new(storage), ConsensusParams::new(Network::Unitest, ConsensusFork::NoFork));
+		let b1 = chain_builder::block_h2();
+		let verifier = ChainVerifier::new(Arc::new(storage), ConsensusParams::new(NetworkParams::Mainnet, ConsensusFork::NoFork));
 		assert!(verifier.verify(VerificationLevel::Full, &b1.into()).is_ok());
 	}
 
 	#[test]
 	fn coinbase_maturity() {
-		let genesis = test_data::block_builder()
+		let genesis = chain_builder::block_builder()
 			.transaction()
 				.coinbase()
 				.output().value(50).build()
@@ -178,7 +178,7 @@ mod tests {
 		let storage = BlockChainDatabase::init_test_chain(vec![genesis.clone().into()]);
 		let genesis_coinbase = genesis.transactions()[0].hash();
 
-		let block = test_data::block_builder()
+		let block = chain_builder::block_builder()
 			.transaction()
 				.coinbase()
 				.output().value(1).build()
@@ -190,7 +190,7 @@ mod tests {
 			.merkled_header().parent(genesis.hash()).build()
 			.build();
 
-		let verifier = ChainVerifier::new(Arc::new(storage), ConsensusParams::new(Network::Unitest, ConsensusFork::NoFork));
+		let verifier = ChainVerifier::new(Arc::new(storage), ConsensusParams::new(NetworkParams::Mainnet, ConsensusFork::NoFork));
 
 		let expected = Err(Error::Transaction(
 			1,
@@ -202,7 +202,7 @@ mod tests {
 
 	#[test]
 	fn non_coinbase_happy() {
-		let genesis = test_data::block_builder()
+		let genesis = chain_builder::block_builder()
 			.transaction()
 				.coinbase()
 				.output().value(1).build()
@@ -216,7 +216,7 @@ mod tests {
 		let storage = BlockChainDatabase::init_test_chain(vec![genesis.clone().into()]);
 		let reference_tx = genesis.transactions()[1].hash();
 
-		let block = test_data::block_builder()
+		let block = chain_builder::block_builder()
 			.transaction()
 				.coinbase()
 				.output().value(2).build()
@@ -228,13 +228,13 @@ mod tests {
 			.merkled_header().parent(genesis.hash()).build()
 			.build();
 
-		let verifier = ChainVerifier::new(Arc::new(storage), ConsensusParams::new(Network::Unitest, ConsensusFork::NoFork));
+		let verifier = ChainVerifier::new(Arc::new(storage), ConsensusParams::new(NetworkParams::Mainnet, ConsensusFork::NoFork));
 		assert!(verifier.verify(VerificationLevel::Full, &block.into()).is_ok());
 	}
 
 	#[test]
 	fn transaction_references_same_block_happy() {
-		let genesis = test_data::block_builder()
+		let genesis = chain_builder::block_builder()
 			.transaction()
 				.coinbase()
 				.output().value(1).build()
@@ -248,7 +248,7 @@ mod tests {
 		let storage = BlockChainDatabase::init_test_chain(vec![genesis.clone().into()]);
 		let first_tx_hash = genesis.transactions()[1].hash();
 
-		let block = test_data::block_builder()
+		let block = chain_builder::block_builder()
 			.transaction()
 				.coinbase()
 				.output().value(2).build()
@@ -264,13 +264,13 @@ mod tests {
 			.merkled_header().parent(genesis.hash()).build()
 			.build();
 
-		let verifier = ChainVerifier::new(Arc::new(storage), ConsensusParams::new(Network::Unitest, ConsensusFork::NoFork));
+		let verifier = ChainVerifier::new(Arc::new(storage), ConsensusParams::new(NetworkParams::Mainnet, ConsensusFork::NoFork));
 		assert!(verifier.verify(VerificationLevel::Full, &block.into()).is_ok());
 	}
 
 	#[test]
 	fn transaction_references_same_block_overspend() {
-		let genesis = test_data::block_builder()
+		let genesis = chain_builder::block_builder()
 			.transaction()
 				.coinbase()
 				.output().value(1).build()
@@ -284,7 +284,7 @@ mod tests {
 		let storage = BlockChainDatabase::init_test_chain(vec![genesis.clone().into()]);
 		let first_tx_hash = genesis.transactions()[1].hash();
 
-		let block = test_data::block_builder()
+		let block = chain_builder::block_builder()
 			.transaction()
 				.coinbase()
 				.output().value(2).build()
@@ -303,7 +303,7 @@ mod tests {
 			.merkled_header().parent(genesis.hash()).build()
 			.build();
 
-		let verifier = ChainVerifier::new(Arc::new(storage), ConsensusParams::new(Network::Unitest, ConsensusFork::NoFork));
+		let verifier = ChainVerifier::new(Arc::new(storage), ConsensusParams::new(NetworkParams::Mainnet, ConsensusFork::NoFork));
 
 		let expected = Err(Error::Transaction(2, TransactionError::Overspend));
 		assert_eq!(expected, verifier.verify(VerificationLevel::Full, &block.into()));
@@ -312,7 +312,7 @@ mod tests {
 	#[test]
 	#[ignore]
 	fn coinbase_happy() {
-		let genesis = test_data::block_builder()
+		let genesis = chain_builder::block_builder()
 			.transaction()
 				.coinbase()
 				.output().value(50).build()
@@ -325,7 +325,7 @@ mod tests {
 
 		// waiting 100 blocks for genesis coinbase to become valid
 		for _ in 0..100 {
-			let block: IndexedBlock = test_data::block_builder()
+			let block: IndexedBlock = chain_builder::block_builder()
 				.transaction().coinbase().build()
 				.merkled_header().parent(genesis.hash()).build()
 				.build()
@@ -337,7 +337,7 @@ mod tests {
 
 		let best_hash = storage.best_block().hash;
 
-		let block = test_data::block_builder()
+		let block = chain_builder::block_builder()
 			.transaction().coinbase().build()
 			.transaction()
 				.input().hash(genesis_coinbase.clone()).build()
@@ -345,13 +345,13 @@ mod tests {
 			.merkled_header().parent(best_hash).build()
 			.build();
 
-		let verifier = ChainVerifier::new(Arc::new(storage), ConsensusParams::new(Network::Unitest, ConsensusFork::NoFork));
+		let verifier = ChainVerifier::new(Arc::new(storage), ConsensusParams::new(NetworkParams::Mainnet, ConsensusFork::NoFork));
 		assert!(verifier.verify(VerificationLevel::Full, &block.into()).is_ok());
 	}
 
 	#[test]
 	fn absoulte_sigops_overflow_block() {
-		let genesis = test_data::block_builder()
+		let genesis = chain_builder::block_builder()
 			.transaction()
 				.coinbase()
 				.build()
@@ -374,7 +374,7 @@ mod tests {
 			builder_tx2 = builder_tx2.push_opcode(script::Opcode::OP_CHECKSIG)
 		}
 
-		let block: IndexedBlock = test_data::block_builder()
+		let block: IndexedBlock = chain_builder::block_builder()
 			.transaction().coinbase().build()
 			.transaction()
 				.input()
@@ -392,20 +392,20 @@ mod tests {
 			.build()
 			.into();
 
-		let verifier = ChainVerifier::new(Arc::new(storage), ConsensusParams::new(Network::Unitest, ConsensusFork::NoFork));
+		let verifier = ChainVerifier::new(Arc::new(storage), ConsensusParams::new(NetworkParams::Mainnet, ConsensusFork::NoFork));
 		let expected = Err(Error::MaximumSigops);
 		assert_eq!(expected, verifier.verify(VerificationLevel::Full, &block.into()));
 	}
 
 	#[test]
 	fn coinbase_overspend() {
-		let genesis = test_data::block_builder()
+		let genesis = chain_builder::block_builder()
 			.transaction().coinbase().build()
 			.merkled_header().build()
 			.build();
 		let storage = BlockChainDatabase::init_test_chain(vec![genesis.clone().into()]);
 
-		let block: IndexedBlock = test_data::block_builder()
+		let block: IndexedBlock = chain_builder::block_builder()
 			.transaction()
 				.coinbase()
 				.output().value(5000000001).build()
@@ -414,7 +414,7 @@ mod tests {
 			.build()
 			.into();
 
-		let verifier = ChainVerifier::new(Arc::new(storage), ConsensusParams::new(Network::Unitest, ConsensusFork::NoFork));
+		let verifier = ChainVerifier::new(Arc::new(storage), ConsensusParams::new(NetworkParams::Mainnet, ConsensusFork::NoFork));
 
 		let expected = Err(Error::CoinbaseOverspend {
 			expected_max: 5000000000,

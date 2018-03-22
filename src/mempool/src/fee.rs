@@ -18,7 +18,7 @@ pub fn transaction_fee_rate(store: &TransactionProvider, transaction: &Transacti
 
 #[cfg(test)]
 mod tests {
-	extern crate test_data;
+	extern crate chain_builder;
 
 	use std::sync::Arc;
 	use db::{BlockChainDatabase, AsSubstore};
@@ -26,7 +26,7 @@ mod tests {
 
 	#[test]
 	fn test_transaction_fee() {
-		let b0 = test_data::block_builder().header().nonce(1).build()
+		let b0 = chain_builder::block_builder().header().nonce(1).build()
 			.transaction()
 				.output().value(1_000_000).build()
 				.output().value(2_000_000).build()
@@ -34,7 +34,7 @@ mod tests {
 			.build();
 		let tx0 = b0.transactions[0].clone();
 		let tx0_hash = tx0.hash();
-		let b1 = test_data::block_builder().header().parent(b0.hash().clone()).nonce(2).build()
+		let b1 = chain_builder::block_builder().header().parent(b0.hash().clone()).nonce(2).build()
 			.transaction()
 				.input().hash(tx0_hash.clone()).index(0).build()
 				.input().hash(tx0_hash).index(1).build()

@@ -272,7 +272,7 @@ impl<'a> BlockWitness<'a> {
 
 #[cfg(test)]
 mod tests {
-	extern crate test_data;
+	extern crate chain_builder;
 
 	use {Error, CanonBlock};
 	use super::BlockCoinbaseScript;
@@ -283,7 +283,7 @@ mod tests {
 		// https://blockchain.info/rawtx/7cf05175ce9c8dbfff9aafa8263edc613fc08f876e476553009afcf7e3868a0c?format=hex
 		let tx = "01000000010000000000000000000000000000000000000000000000000000000000000000ffffffff3f033d0a070004b663ec58049cba630608733867a0787a02000a425720537570706f727420384d200a666973686572206a696e78696e092f425720506f6f6c2fffffffff01903d9d4e000000001976a914721afdf638d570285d02d3076d8be6a03ee0794d88ac00000000".into();
 		let block_number = 461373;
-		let block = test_data::block_builder()
+		let block = chain_builder::block_builder()
 			.with_transaction(tx)
 			.header().build()
 			.build()
@@ -291,7 +291,6 @@ mod tests {
 
 		let coinbase_script_validator = BlockCoinbaseScript {
 			block: CanonBlock::new(&block),
-			bip34_active: true,
 			height: block_number,
 		};
 
@@ -299,7 +298,6 @@ mod tests {
 
 		let coinbase_script_validator2 = BlockCoinbaseScript {
 			block: CanonBlock::new(&block),
-			bip34_active: true,
 			height: block_number - 1,
 		};
 

@@ -16,3 +16,7 @@ script = { path = "../script" }
 params = { path = "../params" }
 db = { path = "../db" }
 bitcrypto = { path = "../crypto" }
+
+[dev-dependencies]
+chain_builder = { path = "../chain_builder" }
+db = { path = "../db" }

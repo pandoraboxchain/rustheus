@@ -1,6 +1,6 @@
 extern crate chain;
 extern crate db;
-extern crate test_data;
+extern crate chain_builder;
 
 use chain::IndexedBlock;
 use db::kv::{MemoryDatabase, SharedMemoryDatabase};
@@ -9,9 +9,9 @@ use db::{BlockChainDatabase, BlockProvider, SideChainOrigin, ForkChain};
 #[test]
 fn insert_block() {
 	let store = BlockChainDatabase::open(MemoryDatabase::default());
-	let b0: IndexedBlock = test_data::block_h0().into();
-	let b1: IndexedBlock = test_data::block_h1().into();
-	let b2: IndexedBlock = test_data::block_h2().into();
+	let b0: IndexedBlock = chain_builder::block_h0().into();
+	let b1: IndexedBlock = chain_builder::block_h1().into();
+	let b2: IndexedBlock = chain_builder::block_h2().into();
 
 	store.insert(b0.clone()).unwrap();
 	store.insert(b1.clone()).unwrap();
@@ -49,9 +49,9 @@ fn insert_block() {
 #[test]
 fn reopen_db() {
 	let shared_database = SharedMemoryDatabase::default();
-	let b0: IndexedBlock = test_data::block_h0().into();
-	let b1: IndexedBlock = test_data::block_h1().into();
-	let b2: IndexedBlock = test_data::block_h2().into();
+	let b0: IndexedBlock = chain_builder::block_h0().into();
+	let b1: IndexedBlock = chain_builder::block_h1().into();
+	let b2: IndexedBlock = chain_builder::block_h2().into();
 
 	{
 		let store = BlockChainDatabase::open(shared_database.clone());
@@ -76,9 +76,9 @@ fn reopen_db() {
 #[test]
 fn switch_to_simple_fork() {
 	let store = BlockChainDatabase::open(MemoryDatabase::default());
-	let b0: IndexedBlock = test_data::block_h0().into();
-	let b1: IndexedBlock = test_data::block_h1().into();
-	let b2: IndexedBlock = test_data::block_h2().into();
+	let b0: IndexedBlock = chain_builder::block_h0().into();
+	let b1: IndexedBlock = chain_builder::block_h1().into();
+	let b2: IndexedBlock = chain_builder::block_h2().into();
 
 	store.insert(b0.clone()).unwrap();
 	store.insert(b1.clone()).unwrap();

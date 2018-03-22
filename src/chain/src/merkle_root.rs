@@ -48,7 +48,8 @@ mod tests {
 
 	#[test]
 	fn test_merkle_root_empty() {
-		let result = merkle_root(&[]);
+		let empty_vec: Vec<H256> = vec![];
+		let result = merkle_root(&empty_vec[..]);
 		assert_eq!(result, H256::default());
 	}
 	

@@ -335,34 +335,3 @@ impl<'a> TransactionDoubleSpend<'a> {
 		Ok(())
 	}
 }
-
-#[cfg(test)]
-mod tests {
-	use chain::{IndexedTransaction, Transaction, TransactionOutput};
-	use params::{Network, ConsensusParams, ConsensusFork};
-	use script::Builder;
-	use canon::CanonTransaction;
-	use error::TransactionError;
-	use super::TransactionReturnReplayProtection;
-
-	#[test]
-	fn return_replay_protection_works() {
-		let transaction: IndexedTransaction = Transaction {
-			version: 1,
-			inputs: vec![],
-			outputs: vec![TransactionOutput {
-				value: 0,
-				script_pubkey: Builder::default()
-					.return_bytes(b"Bitcoin: A Peer-to-Peer Electronic Cash System")
-					.into_bytes(),
-			}],
-			lock_time: 0xffffffff,
-		}.into();
-
-		assert_eq!(transaction.raw.outputs[0].script_pubkey.len(), 46 + 2);
-
-		let consensus = ConsensusParams::new(Network::Mainnet, ConsensusFork::NoFork);
-		let checker = TransactionReturnReplayProtection::new(CanonTransaction::new(&transaction), &consensus, 100);
-		assert_eq!(checker.check(), Ok(()));
-	}
-}

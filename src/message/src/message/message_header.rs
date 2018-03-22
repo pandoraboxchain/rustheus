@@ -1,5 +1,5 @@
 use hash::H32;
-use ser::{Serializable, Stream, Reader};
+use ser::{Reader, Serializable, Stream};
 use crypto::checksum;
 use params::Magic;
 use common::Command;
@@ -63,14 +63,14 @@ impl Serializable for MessageHeader {
 mod tests {
 	use bytes::Bytes;
 	use ser::serialize;
-	use network::{Network, ConsensusFork};
+	use params::NetworkParams;
 	use super::MessageHeader;
 
 	#[test]
 	fn test_message_header_serialization() {
 		let expected = "f9beb4d96164647200000000000000001f000000ed52399b".into();
 		let header = MessageHeader {
-			magic: Network::Mainnet.magic(&ConsensusFork::NoFork),
+			magic: NetworkParams::Mainnet.magic(),
 			command: "addr".into(),
 			len: 0x1f,
 			checksum: "ed52399b".into(),
@@ -83,12 +83,15 @@ mod tests {
 	fn test_message_header_deserialization() {
 		let raw: Bytes = "f9beb4d96164647200000000000000001f000000ed52399b".into();
 		let expected = MessageHeader {
-			magic: Network::Mainnet.magic(&ConsensusFork::NoFork),
+			magic: NetworkParams::Mainnet.magic(),
 			command: "addr".into(),
 			len: 0x1f,
 			checksum: "ed52399b".into(),
 		};
 
-		assert_eq!(expected, MessageHeader::deserialize(&raw, Network::Mainnet.magic(&ConsensusFork::NoFork)).unwrap());
+		assert_eq!(
+			expected,
+			MessageHeader::deserialize(&raw, NetworkParams::Mainnet.magic()).unwrap()
+		);
 	}
 }

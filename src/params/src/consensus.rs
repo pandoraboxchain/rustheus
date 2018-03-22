@@ -63,47 +63,11 @@ impl ConsensusFork {
 
 #[cfg(test)]
 mod tests {
-	use super::super::Network;
 	use super::{ConsensusParams, ConsensusFork};
-
-	#[test]
-	fn test_consensus_params_bip34_height() {
-		assert_eq!(ConsensusParams::new(Network::Mainnet, ConsensusFork::NoFork).bip34_height, 227931);
-		assert_eq!(ConsensusParams::new(Network::Testnet, ConsensusFork::NoFork).bip34_height, 21111);
-		assert_eq!(ConsensusParams::new(Network::Regtest, ConsensusFork::NoFork).bip34_height, 100000000);
-	}
-
-	#[test]
-	fn test_consensus_params_bip65_height() {
-		assert_eq!(ConsensusParams::new(Network::Mainnet, ConsensusFork::NoFork).bip65_height, 388381);
-		assert_eq!(ConsensusParams::new(Network::Testnet, ConsensusFork::NoFork).bip65_height, 581885);
-		assert_eq!(ConsensusParams::new(Network::Regtest, ConsensusFork::NoFork).bip65_height, 1351);
-	}
-
-	#[test]
-	fn test_consensus_params_bip66_height() {
-		assert_eq!(ConsensusParams::new(Network::Mainnet, ConsensusFork::NoFork).bip66_height, 363725);
-		assert_eq!(ConsensusParams::new(Network::Testnet, ConsensusFork::NoFork).bip66_height, 330776);
-		assert_eq!(ConsensusParams::new(Network::Regtest, ConsensusFork::NoFork).bip66_height, 1251);
-	}
-
-	#[test]
-	fn test_consensus_activation_threshold() {
-		assert_eq!(ConsensusParams::new(Network::Mainnet, ConsensusFork::NoFork).rule_change_activation_threshold, 1916);
-		assert_eq!(ConsensusParams::new(Network::Testnet, ConsensusFork::NoFork).rule_change_activation_threshold, 1512);
-		assert_eq!(ConsensusParams::new(Network::Regtest, ConsensusFork::NoFork).rule_change_activation_threshold, 108);
-	}
-
-	#[test]
-	fn test_consensus_miner_confirmation_window() {
-		assert_eq!(ConsensusParams::new(Network::Mainnet, ConsensusFork::NoFork).miner_confirmation_window, 2016);
-		assert_eq!(ConsensusParams::new(Network::Testnet, ConsensusFork::NoFork).miner_confirmation_window, 2016);
-		assert_eq!(ConsensusParams::new(Network::Regtest, ConsensusFork::NoFork).miner_confirmation_window, 144);
-	}
-
+	//TODO do we need miner_confirmation_window and rule_change_activation_threshold ?
 	#[test]
 	fn test_consensus_fork_min_block_size() {
-		assert_eq!(ConsensusFork::NoFork.min_block_size(0), 0);
+		assert_eq!(ConsensusFork::NoFork.min_block_size(), 0);
 	}
 
 	#[test]
@@ -113,6 +77,6 @@ mod tests {
 
 	#[test]
 	fn test_consensus_fork_max_block_sigops() {
-		assert_eq!(ConsensusFork::NoFork.max_block_sigops(0, 1_000_000), 20_000);
+		assert_eq!(ConsensusFork::NoFork.max_block_sigops(0, 1_000_000), 80_000);
 	}
 }

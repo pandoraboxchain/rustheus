@@ -106,7 +106,7 @@ mod tests {
 	use compact::Compact;
 	use super::{
 		NetworkParams, MAGIC_MAINNET, MAGIC_TESTNET,
-		MAX_BITS_MAINNET, MAX_BITS_TESTNET, MAX_BITS_REGTEST,
+		MAX_BITS_MAINNET, MAX_BITS_TESTNET,
 	};
 
 	#[test]

@@ -142,7 +142,7 @@ pub fn block_reward_satoshi(block_height: u32) -> u64 {
 mod tests {
 	use primitives::hash::H256;
 	use primitives::compact::Compact;
-	use params::Network;
+	use params::NetworkParams;
 	use super::{is_valid_proof_of_work_hash, is_valid_proof_of_work, block_reward_satoshi};
 
 	fn is_valid_pow(max: Compact, bits: u32, hash: &'static str) -> bool {
@@ -153,14 +153,9 @@ mod tests {
 	#[test]
 	fn test_is_valid_proof_of_work() {
 		// block 2
-		assert!(is_valid_pow(Network::Mainnet.max_bits().into(), 486604799u32, "000000006a625f06636b8bb6ac7b960a8d03705d1ace08b1a19da3fdcc99ddbd"));
+		assert!(is_valid_pow(NetworkParams::Mainnet.max_bits().into(), 486604799u32, "000000006a625f06636b8bb6ac7b960a8d03705d1ace08b1a19da3fdcc99ddbd"));
 		// block 400_000
-		assert!(is_valid_pow(Network::Mainnet.max_bits().into(), 403093919u32, "000000000000000004ec466ce4732fe6f1ed1cddc2ed4b328fff5224276e3f6f"));
-
-		// other random tests
-		assert!(is_valid_pow(Network::Regtest.max_bits().into(), 0x181bc330u32, "00000000000000001bc330000000000000000000000000000000000000000000"));
-		assert!(!is_valid_pow(Network::Regtest.max_bits().into(), 0x181bc330u32, "00000000000000001bc330000000000000000000000000000000000000000001"));
-		assert!(!is_valid_pow(Network::Regtest.max_bits().into(), 0x181bc330u32, "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"));
+		assert!(is_valid_pow(NetworkParams::Mainnet.max_bits().into(), 403093919u32, "000000000000000004ec466ce4732fe6f1ed1cddc2ed4b328fff5224276e3f6f"));
 	}
 
 	#[test]
