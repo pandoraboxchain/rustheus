@@ -23,7 +23,7 @@ impl MemoryPoolTransactionOutputProvider {
 	/// Create new provider for verifying given transaction
 	pub fn for_transaction(storage: StorageRef, memory_pool: &MemoryPoolRef, transaction: &Transaction) -> Result<Self, TransactionError> {
 		// we have to check if there are another in-mempool transactions which spent same outputs here
-		let memory_pool = memory_pool.read().unwrap();
+		let memory_pool = memory_pool.read();
 		let check_result = memory_pool.check_double_spend(transaction);
 		match check_result {
 			// input of transaction is already spent by another final transaction from memory pool
@@ -93,25 +93,25 @@ impl TransactionOutputProvider for MemoryPoolTransactionOutputProvider {
 
 #[cfg(test)]
 mod tests {
-	extern crate test_data;
+	extern crate chain_builder;
 
 	use std::sync::Arc;
 	use parking_lot::RwLock;
 	use chain::OutPoint;
 	use db::{TransactionOutputProvider, BlockChainDatabase};
-	use miner::MemoryPool;
+	use memory_pool::MemoryPool;
 	use super::MemoryPoolTransactionOutputProvider;
 
 	#[test]
 	fn when_transaction_depends_on_removed_nonfinal_transaction() {
-		let dchain = &mut test_data::ChainBuilder::new();
+		let dchain = &mut chain_builder::ChainBuilder::new();
 
-		test_data::TransactionBuilder::with_output(10).store(dchain)					// t0
+		chain_builder::TransactionBuilder::with_output(10).store(dchain)					// t0
 			.reset().set_input(&dchain.at(0), 0).add_output(20).lock().store(dchain)	// nonfinal: t0[0] -> t1
 			.reset().set_input(&dchain.at(1), 0).add_output(30).store(dchain)			// dependent: t0[0] -> t1[0] -> t2
 			.reset().set_input(&dchain.at(0), 0).add_output(40).store(dchain);			// good replacement: t0[0] -> t3
 
-		let storage = Arc::new(BlockChainDatabase::init_test_chain(vec![test_data::genesis().into()]));
+		let storage = Arc::new(BlockChainDatabase::init_test_chain(vec![chain_builder::genesis().into()]));
 		let memory_pool = Arc::new(RwLock::new(MemoryPool::new()));
 		{
 			memory_pool.write().insert_verified(dchain.at(0).into());

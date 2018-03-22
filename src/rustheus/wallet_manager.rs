@@ -174,7 +174,7 @@ impl WalletManager {
         };
 
         let hash = signed_transaction.hash();
-        if self.mempool.read().unwrap().contains(&hash) {
+        if self.mempool.read().contains(&hash) {
             error!("Exact same transaction already exists in mempool");
             return;
         }
@@ -184,7 +184,7 @@ impl WalletManager {
         };
         self.wrapper.broadcast(&tx);
 
-        let mut mempool = self.mempool.write().unwrap();
+        let mut mempool = self.mempool.write();
         mempool.insert_verified(signed_transaction.into());
     }
 }

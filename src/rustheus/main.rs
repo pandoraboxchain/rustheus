@@ -18,6 +18,7 @@ extern crate script;
 extern crate serialization as ser;
 extern crate shrust;
 extern crate verification;
+extern crate parking_lot;
 
 #[macro_use]
 extern crate log;
@@ -30,7 +31,8 @@ use clap::*;
 
 use std::thread;
 use params::NetworkParams;
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
+use parking_lot::RwLock;
 use std::process;
 use std::sync::mpsc;
 use memory_pool::MemoryPool;
@@ -171,7 +173,7 @@ fn main() {
     });
 
     network.run(); //main thread loop
-    drop(network); //remove everything after network loop was finished
+    drop(network); //remove everything after network loop has finished
 
     info!("Node is about to finish. If it doesn't it means one of the threads hangs and database won't save");
 
@@ -182,7 +184,7 @@ fn main() {
     responder_thread.join().unwrap();
     executor_thread.join().unwrap();
 
-    //TODO ending app properly is shallow. Every module and thread has to end, so database will be saved properly
-    //for this to happen every used sender should be deleted so every thread may break it's loop when no senders is available
-    //maybe it's worth switching to some kind of per task futures because current threads architecture consumes whole cpu core for no particular reason
+    //TODO ending app properly is shallow. Every module and thread has to end for database to save properly
+    //for this to happen every used Sender should be deleted so every thread may break its loop when no senders are available
+    //maybe it's worth switching to some kind of per task futures and cpupool
 }

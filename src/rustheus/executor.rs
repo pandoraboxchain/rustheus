@@ -80,7 +80,7 @@ impl Executor {
             bits: 5.into(),
             nonce: 6,
         };
-        let mut mempool = self.mempool.write().unwrap();
+        let mut mempool = self.mempool.write();
         let mut transactions = vec![self.create_coinbase(coinbase_recipient)];
         //TODO add transaction fees to coinbase reward
         //TODO take not fixed number of transactions, but deduce it from block size
@@ -116,7 +116,7 @@ impl Executor {
         match self.add_and_canonize_block(block) {
             Ok(_) => {
                 info!("Block inserted and canonized with hash {}", hash);
-                let mut mempool = self.mempool.write().unwrap();
+                let mut mempool = self.mempool.write();
                 for transaction in transactions {
                     mempool.remove_by_hash(&transaction.hash);
                 }

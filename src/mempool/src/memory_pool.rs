@@ -17,7 +17,8 @@ use std::collections::VecDeque;
 use std::hash::{Hash, Hasher};
 use ser::{Serializable, serialize};
 use heapsize::HeapSizeOf;
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
+use parking_lot::RwLock;
 
 pub type MemoryPoolRef = Arc<RwLock<MemoryPool>>;
 
@@ -872,12 +873,12 @@ impl<'a> Iterator for MemoryPoolIterator<'a> {
 
 #[cfg(test)]
 mod tests {
-	extern crate test_data;
+	extern crate chain_builder;
 
 	use chain::{Transaction, OutPoint};
 	use heapsize::HeapSizeOf;
 	use super::{MemoryPool, OrderingStrategy, DoubleSpendCheckResult};
-	use self::test_data::{ChainBuilder, TransactionBuilder};
+	use self::chain_builder::{ChainBuilder, TransactionBuilder};
 
 	fn to_memory_pool(chain: &mut ChainBuilder) -> MemoryPool {
 		let mut pool = MemoryPool::new();

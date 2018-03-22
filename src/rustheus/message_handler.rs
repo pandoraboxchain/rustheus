@@ -58,7 +58,7 @@ impl MessageHandler {
     fn on_transaction(&self, message: types::Tx) {
         let transaction = message.transaction;
         let hash = transaction.hash();
-        if self.mempool.read().unwrap().contains(&hash) {
+        if self.mempool.read().contains(&hash) {
             trace!(target: "handler", "Received transaction which already exists in mempool. Ignoring");
             return;
         }
@@ -84,7 +84,7 @@ impl MessageHandler {
                         // we have verified transaction, but possibly this transaction replaces
                         // existing transaction from memory pool
                         // => remove previous transactions before
-                        let mut memory_pool = self.mempool.write().unwrap();
+                        let mut memory_pool = self.mempool.write();
                         for input in &transaction.inputs {
                             memory_pool.remove_by_prevout(&input.previous_output);
                         }
