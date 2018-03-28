@@ -1,28 +1,33 @@
 use message::Payload;
 use std::sync::mpsc::Sender;
-use params::info::NETWORK_INFO;
+use params::NetworkParams;
 use ser::SERIALIZE_TRANSACTION_WITNESS;
 use message::Message;
 use network::{PeerAndBytes, PeerIndex};
 use routing::XorName;
 
+#[derive(Clone)]
 pub struct MessageWrapper {
+    network_params: NetworkParams,
     network_channel: Sender<PeerAndBytes>,
 }
 
 impl MessageWrapper {
-    pub fn new(network_channel: Sender<PeerAndBytes>) -> Self {
-        MessageWrapper { network_channel }
+    pub fn new(network_params: NetworkParams, network_channel: Sender<PeerAndBytes>, ) -> Self {
+        MessageWrapper {
+            network_params,
+            network_channel,
+        }
     }
 
     pub fn broadcast<T>(&self, payload: &T)
     where
         T: Payload, //TODO use moving here instead of borrowing
     {
-        let info = NETWORK_INFO;
+        let version = 0;
         let message = Message::with_flags(
-            info.magic,
-            info.version,
+            self.network_params.magic(),
+            version,
             payload,
             SERIALIZE_TRANSACTION_WITNESS,
         ).expect("failed to create outgoing message");
@@ -37,10 +42,10 @@ impl MessageWrapper {
     where
         T: Payload, //TODO use moving here instead of borrowing
     {
-        let info = NETWORK_INFO;
+        let version = 0;
         let message = Message::with_flags(
-            info.magic,
-            info.version,
+            self.network_params.magic(),
+            version,
             payload,
             SERIALIZE_TRANSACTION_WITNESS,
         ).expect("failed to create outgoing message");

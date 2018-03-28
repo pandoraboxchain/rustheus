@@ -3,7 +3,6 @@ use message::MessageHeader;
 use message::{deserialize_payload, types, Error, Payload};
 use message::common::InventoryType;
 
-use params::info::NETWORK_INFO;
 use service::Service;
 use crypto::checksum;
 use db::SharedStore;
@@ -27,6 +26,7 @@ pub struct MessageHandler {
     message_wrapper: MessageWrapper,
 
     verifier: ChainVerifier,
+    params: NetworkParams,
 }
 
 impl MessageHandler {
@@ -37,6 +37,7 @@ impl MessageHandler {
         network_responder: Sender<ResponderTask>,
         executor_sender: Sender<ExecutorTask>,
         message_wrapper: MessageWrapper,
+        params: NetworkParams,
     ) -> Self {
         let verifier = ChainVerifier::new(
             store.clone(),
@@ -51,6 +52,7 @@ impl MessageHandler {
             executor_sender,
             message_wrapper,
             verifier,
+            params,
         }
     }
 
@@ -206,8 +208,7 @@ impl Service for MessageHandler {
                 let peer = peer_and_bytes.peer;
                 //TODO check boundaries
                 let data_start = 24;
-                let info = NETWORK_INFO;
-                match MessageHeader::deserialize(&bytes[0..data_start], info.magic) {
+                match MessageHeader::deserialize(&bytes[0..data_start], self.params.magic()) {
                     Ok(header) => {
                         let data_end = data_start + header.len as usize;
                         let data = &bytes[data_start..data_end];

@@ -15,7 +15,6 @@ pub struct MessageHeader {
 
 impl MessageHeader {
 	pub fn for_data(magic: Magic, command: Command, data: &[u8]) -> Self {
-		println!("sending data len is {:?}", data.len());
 		MessageHeader {
 			magic: magic,
 			command: command,

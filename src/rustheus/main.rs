@@ -47,6 +47,7 @@ mod db_utils;
 mod wallet_manager;
 mod wallet;
 mod responder;
+mod config;
 
 use network::NetworkNode;
 use executor::Executor;
@@ -69,7 +70,7 @@ fn main() {
             Arg::with_name("first")
                 .short("f")
                 .long("first")
-                .help("Indicates if this node be bootstraping node")
+                .help("Indicates this node will be bootstraped from")
         )
         .arg(
             Arg::with_name("number")
@@ -78,9 +79,15 @@ fn main() {
                 .help("Number for node unique database for debug usage. Allows have databases inside different folders and unique telnet ports to communicate")
                 .takes_value(true)
         )
+        .arg(
+            Arg::with_name("testnet")
+                .short("t")
+                .long("testnet")
+                .help("Use testnet rules where tokens have no real world value")
+        )
         .get_matches();
 
-    let is_first_node = matches.is_present("first");
+    let config = config::parse(&matches).expect("Could not parse command line arguments");
 
     //setup database
     let db_path_string = "./db".to_owned() + matches.value_of("number").unwrap_or("") + "/";
@@ -99,11 +106,13 @@ fn main() {
     let (executor_sender, executor_receiver) = mpsc::channel();
     let (wallet_manager_sender, wallet_manager_receiver) = mpsc::channel();
 
+    let message_wrapper = MessageWrapper::new(config.network, to_network_sender.clone());
+
     //setup network requests responder
     let responder = Responder {
         storage: storage.clone(),
         task_receiver: responder_task_receiver,
-        message_wrapper: MessageWrapper::new(to_network_sender.clone()),
+        message_wrapper: message_wrapper.clone(),
     };
 
     //setup network messages handler
@@ -113,12 +122,13 @@ fn main() {
         from_network_receiver,
         responder_task_sender,
         executor_sender.clone(),
-        MessageWrapper::new(to_network_sender.clone()),
+        message_wrapper.clone(),
+        config.network,
     );
 
     //setup p2p layer
     let mut network = NetworkNode::new(
-        is_first_node,
+        config.is_first,
         from_network_sender,
         to_network_receiver,
         terminate_receiver,
@@ -129,23 +139,18 @@ fn main() {
         mempool_ref.clone(),
         storage.clone(),
         wallet_manager_receiver,
-        MessageWrapper::new(to_network_sender.clone()),
+        message_wrapper.clone(),
     );
     let mut executor = Executor::new(
         mempool_ref.clone(),
         storage.clone(),
         executor_receiver,
-        MessageWrapper::new(to_network_sender.clone()),
+        message_wrapper.clone(),
     );
 
     //setup telnet listener
-    let node_unique_number = matches
-        .value_of("number")
-        .unwrap_or("0")
-        .parse::<u32>()
-        .expect("Node number is incorrect");
     let input_listener = InputListener::new(
-        node_unique_number,
+        config.telnet_port,
         executor_sender.clone(),
         wallet_manager_sender,
         terminate_sender,

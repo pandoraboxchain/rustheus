@@ -41,5 +41,4 @@ members = [
     "src/serialization",
     "src/params",
     "src/message",
-    "vendor/routing"
     ]

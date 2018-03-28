@@ -6,7 +6,6 @@ extern crate primitives;
 
 mod params;
 mod consensus;
-pub mod info;
 
 pub use primitives::{hash, compact};
 

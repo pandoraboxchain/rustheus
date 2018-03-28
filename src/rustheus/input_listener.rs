@@ -11,20 +11,20 @@ use primitives::hash::H256;
 type Senders = (Sender<ExecutorTask>, Sender<WalletTask>);
 
 pub struct InputListener {
-    node_number: u32,
+    port: u16,
     shell: Shell<Senders>,
     terminator: Sender<bool>,
 }
 
 impl InputListener {
     pub fn new(
-        node_number: u32,
+        port: u16,
         executor: Sender<ExecutorTask>,
         wallet_manager: Sender<WalletTask>,
         terminator: Sender<bool>,
     ) -> Self {
         let shell = Self::create_shell(executor, wallet_manager);
-        InputListener { node_number, shell, terminator }
+        InputListener { port, shell, terminator }
     }
 
     fn create_shell(
@@ -154,7 +154,7 @@ impl InputListener {
     }
 
     pub fn run(&self) {
-        let port = "407".to_owned() + &self.node_number.to_string();
+        let port = self.port.to_string();
         info!(
             "Node is about to start. You may run $ telnet localhost {}",
             port
