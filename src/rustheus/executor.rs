@@ -17,7 +17,6 @@ type BlockHeight = u32;
 
 #[derive(Debug, PartialEq)]
 pub enum Task {
-    AddVerifiedBlock(IndexedBlock),
     SignBlock(Address),
     RequestLatestBlocks(),
 
@@ -57,7 +56,6 @@ impl Executor {
                     Task::GetTransactionMeta(hash) => self.get_transaction_meta(hash),
                     Task::GetBlockHash(height) => self.get_block_hash(height),
                     Task::RequestLatestBlocks() => self.request_latest_blocks(),
-                    Task::AddVerifiedBlock(block) => self.add_verified_block(block),
                 }
             } else {
                 break;
@@ -107,21 +105,6 @@ impl Executor {
         match self.store.insert(block) {
             Ok(_) => self.store.canonize(&hash),
             Err(err) => Err(err),
-        }
-    }
-
-    fn add_verified_block(&self, block: IndexedBlock) {
-        let hash = block.hash().clone();
-        let transactions = block.transactions.clone();
-        match self.add_and_canonize_block(block) {
-            Ok(_) => {
-                info!("Block inserted and canonized with hash {}", hash);
-                let mut mempool = self.mempool.write();
-                for transaction in transactions {
-                    mempool.remove_by_hash(&transaction.hash);
-                }
-            }
-            Err(err) => error!("Cannot canonize received block due to {:?}", err),
         }
     }
 

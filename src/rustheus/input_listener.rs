@@ -6,7 +6,7 @@ use executor::Task as ExecutorTask;
 use keys::{Address, Private};
 use wallet_manager::Task as WalletTask;
 use primitives::hash::H256;
-
+use crypto::DHash256;
 //TODO please find a way to do this better. This tuple is needed to access senders from command closures
 type Senders = (Sender<ExecutorTask>, Sender<WalletTask>);
 

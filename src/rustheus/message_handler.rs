@@ -6,111 +6,52 @@ use message::common::InventoryType;
 use service::Service;
 use crypto::checksum;
 use db::SharedStore;
-use memory_pool::MemoryPoolRef;
-use memory_pool::MemoryPoolTransactionOutputProvider;
 use chain::IndexedBlock;
 use responder::ResponderTask;
 use network::{PeerAndBytes, PeerIndex};
 use message_wrapper::MessageWrapper;
-use verification::BackwardsCompatibleChainVerifier as ChainVerifier;
-use verification::{VerificationLevel, Verify};
-use params::{ConsensusFork, ConsensusParams, NetworkParams};
-use executor::Task as ExecutorTask;
+use acceptor::Task as AcceptorTask;
+use params::NetworkParams;
 
 pub struct MessageHandler {
-    mempool: MemoryPoolRef,
     network_data_receiver: Receiver<PeerAndBytes>,
     store: SharedStore,
     network_responder: Sender<ResponderTask>,
-    executor_sender: Sender<ExecutorTask>,
+    acceptor_sender: Sender<AcceptorTask>,
     message_wrapper: MessageWrapper,
-
-    verifier: ChainVerifier,
     params: NetworkParams,
 }
 
 impl MessageHandler {
     pub fn new(
-        mempool: MemoryPoolRef,
         store: SharedStore,
         network_data_receiver: Receiver<PeerAndBytes>,
         network_responder: Sender<ResponderTask>,
-        executor_sender: Sender<ExecutorTask>,
+        acceptor_sender: Sender<AcceptorTask>,
         message_wrapper: MessageWrapper,
         params: NetworkParams,
     ) -> Self {
-        let verifier = ChainVerifier::new(
-            store.clone(),
-            ConsensusParams::new(NetworkParams::Mainnet, ConsensusFork::NoFork),
-        );
 
         MessageHandler {
-            mempool,
             store,
             network_data_receiver,
             network_responder,
-            executor_sender,
+            acceptor_sender,
             message_wrapper,
-            verifier,
             params,
         }
     }
 
-    //TODO check inputs other than [0]
     fn on_transaction(&self, message: types::Tx) {
-        let transaction = message.transaction;
-        let hash = transaction.hash();
-        if self.mempool.read().contains(&hash) {
-            trace!(target: "handler", "Received transaction which already exists in mempool. Ignoring");
-            return;
-        }
-        match MemoryPoolTransactionOutputProvider::for_transaction(
-            self.store.clone(),
-            &self.mempool,
-            &transaction,
-        ) {
-            Err(e) => error!(
-                "Can't accept transaction {} into mempool {:?}",
-                transaction.hash(),
-                e
-            ),
-            Ok(tx_output_provider) => {
-                let height = self.store.best_block().number;
-                match self.verifier.verify_mempool_transaction(
-                    &tx_output_provider,
-                    height,
-                    /*time*/ 0,
-                    &transaction,
-                ) {
-                    Ok(_) => {
-                        // we have verified transaction, but possibly this transaction replaces
-                        // existing transaction from memory pool
-                        // => remove previous transactions before
-                        let mut memory_pool = self.mempool.write();
-                        for input in &transaction.inputs {
-                            memory_pool.remove_by_prevout(&input.previous_output);
-                        }
-                        // now insert transaction itself
-                        memory_pool.insert_verified(transaction.into());
-                    }
-                    Err(e) => error!(
-                        "Can't accept transaction {} into mempool {:?}",
-                        transaction.hash(),
-                        e
-                    ),
-                }
-            }
-        };
+        self.acceptor_sender
+            .send(AcceptorTask::TryAcceptTransaction(message.transaction))
+            .unwrap();
     }
 
     fn on_block(&self, message: types::Block) {
-        let block: IndexedBlock = message.block.into();
-        match self.verifier.verify(VerificationLevel::Full, &block) {
-            Ok(_) => self.executor_sender
-                .send(ExecutorTask::AddVerifiedBlock(block))
-                .unwrap(),
-            Err(err) => error!("Invalid block received: {:?}", err),
-        }
+        self.acceptor_sender
+            .send(AcceptorTask::TryAcceptBlock(message.block))
+            .unwrap();
     }
 
     fn on_inv(&self, peer_index: PeerIndex, message: types::Inv) {

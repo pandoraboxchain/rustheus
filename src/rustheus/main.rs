@@ -48,6 +48,7 @@ mod wallet_manager;
 mod wallet;
 mod responder;
 mod config;
+mod acceptor;
 
 use network::NetworkNode;
 use executor::Executor;
@@ -58,6 +59,7 @@ use message_handler::MessageHandler;
 use service::Service;
 use wallet_manager::WalletManager;
 use responder::Responder;
+use acceptor::Acceptor;
 
 fn main() {
     pretty_env_logger::init();
@@ -104,6 +106,7 @@ fn main() {
     let (responder_task_sender, responder_task_receiver) = mpsc::channel();
     let (terminate_sender, terminate_receiver) = mpsc::channel();
     let (executor_sender, executor_receiver) = mpsc::channel();
+    let (acceptor_sender, acceptor_receiver) = mpsc::channel();
     let (wallet_manager_sender, wallet_manager_receiver) = mpsc::channel();
 
     let message_wrapper = MessageWrapper::new(config.network, to_network_sender.clone());
@@ -117,11 +120,10 @@ fn main() {
 
     //setup network messages handler
     let mut message_handler = MessageHandler::new(
-        mempool_ref.clone(),
         storage.clone(),
         from_network_receiver,
         responder_task_sender,
-        executor_sender.clone(),
+        acceptor_sender,
         message_wrapper.clone(),
         config.network,
     );
@@ -147,6 +149,13 @@ fn main() {
         executor_receiver,
         message_wrapper.clone(),
     );
+    let mut acceptor = Acceptor::new(
+        mempool_ref.clone(),
+        storage.clone(),
+        acceptor_receiver,
+        message_wrapper.clone(),
+        config.network,
+    );
 
     //setup telnet listener
     let input_listener = InputListener::new(
@@ -160,6 +169,7 @@ fn main() {
     let input_listener_thread = thread::spawn(move || input_listener.run());
     let responder_thread = thread::spawn(move || responder.run());
     let executor_thread = thread::spawn(move || executor.run());
+    let acceptor_thread = thread::spawn(move || acceptor.run());
     let wallet_manager_thread = thread::spawn(move || wallet_manager.run());
     let message_handler_thread = thread::spawn(move || message_handler.run());
 
@@ -188,8 +198,10 @@ fn main() {
     wallet_manager_thread.join().unwrap();
     responder_thread.join().unwrap();
     executor_thread.join().unwrap();
+    acceptor_thread.join().unwrap();
 
     //TODO ending app properly is shallow. Every module and thread has to end for database to save properly
     //for this to happen every used Sender should be deleted so every thread may break its loop when no senders are available
     //maybe it's worth switching to some kind of per task futures and cpupool
+    //Workaround TODO is to count every sender, so it's easier to determine which ones are hanging because they were cloned excessively
 }
