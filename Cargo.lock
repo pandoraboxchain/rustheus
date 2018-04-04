@@ -1734,6 +1734,7 @@ dependencies = [
  "bitcrypto 0.1.0",
  "chain 0.1.0",
  "db 0.1.0",
+ "futures 0.1.21 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "memory_pool 0.1.0",
  "message 0.1.0",
@@ -1741,6 +1742,7 @@ dependencies = [
  "params 0.1.0",
  "primitives 0.1.0",
  "serialization 0.1.0",
+ "tokio-core 0.1.16 (registry+https://github.com/rust-lang/crates.io-index)",
  "verification 0.1.0",
 ]
 

@@ -138,7 +138,7 @@ impl MessageHandler {
 }
 
 impl MessageHandler {
-    fn run(&mut self) {
+    pub fn run(&mut self) {
         loop {
             if let Ok(peer_and_bytes) = self.network_data_receiver.recv() {
                 let bytes = peer_and_bytes.bytes;

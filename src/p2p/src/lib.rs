@@ -13,4 +13,4 @@ extern crate routing;
 mod network;
 
 pub use routing::XorName;
-pub use network::{PeerAndBytes, PeerIndex};
+pub use network::{PeerAndBytes, PeerIndex, NetworkNode};

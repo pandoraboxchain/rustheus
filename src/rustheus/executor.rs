@@ -6,7 +6,7 @@ use memory_pool::MemoryPoolRef;
 use memory_pool::MemoryPoolOrderingStrategy as OrderingStrategy;
 use std::time::{SystemTime, UNIX_EPOCH};
 use message::types::{Block as BlockMessage, GetBlocks};
-use message_wrapper::MessageWrapper;
+use sync::MessageWrapper;
 use db::SharedStore;
 use keys::Address;
 use script::Builder;

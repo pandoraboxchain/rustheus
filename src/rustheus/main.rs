@@ -23,8 +23,6 @@ extern crate p2p;
 
 #[macro_use]
 extern crate log;
-#[macro_use]
-extern crate serde_derive;
 
 use clap::*;
 
@@ -36,27 +34,21 @@ use std::process;
 use std::sync::mpsc;
 use memory_pool::MemoryPool;
 
-mod network;
 mod executor;
 mod input_listener;
-mod message_wrapper;
-mod message_handler;
 mod service;
 mod db_utils;
 mod wallet_manager;
 mod wallet;
-mod responder;
 mod config;
 
-use network::NetworkNode;
+use p2p::NetworkNode;
 use executor::Executor;
 use executor::Task as ExecutorTask;
 use input_listener::InputListener;
-use message_wrapper::MessageWrapper;
-use message_handler::MessageHandler;
+use sync::{MessageWrapper, MessageHandler, Responder, Acceptor};
 use service::Service;
 use wallet_manager::WalletManager;
-use responder::Responder;
 
 fn main() {
     pretty_env_logger::init();

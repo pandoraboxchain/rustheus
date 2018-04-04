@@ -2,7 +2,7 @@ use keys::{Address, Private};
 use std::sync::mpsc::{Receiver};
 use service::Service;
 use chain::Transaction;
-use message_wrapper::MessageWrapper;
+use sync::MessageWrapper;
 use message::types::Tx;
 use memory_pool::MemoryPoolRef;
 use wallet::Wallet;
