@@ -1,0 +1,18 @@
+[package]
+name = "sync"
+version = "0.1.0"
+authors = ["Julian Konchunas <konchunas@gmail.com>"]
+
+[dependencies]
+log = "~0.3.8"
+
+serialization = { path = "../serialization" }
+memory_pool = { path = "../mempool" }
+db = { path = "../db" }
+bitcrypto = { path = "../crypto" }
+params = { path = "../params" }
+chain = { path = "../chain" }
+verification = { path = "../verification" }
+message = { path = "../message" }
+primitives = { path = "../primitives" }
+p2p = { path = "../p2p" }

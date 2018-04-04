@@ -6,26 +6,25 @@ extern crate clap;
 extern crate ctrlc;
 extern crate db;
 extern crate keys;
-extern crate lru_time_cache;
-extern crate maidsafe_utilities;
+
 extern crate memory_pool;
 extern crate message;
 extern crate params;
 extern crate pretty_env_logger;
 extern crate primitives;
-extern crate routing;
 extern crate script;
 extern crate serialization as ser;
 extern crate shrust;
 extern crate verification;
 extern crate parking_lot;
+extern crate rpc;
+extern crate sync;
+extern crate p2p;
 
 #[macro_use]
 extern crate log;
 #[macro_use]
 extern crate serde_derive;
-#[macro_use]
-extern crate unwrap;
 
 use clap::*;
 
@@ -48,7 +47,6 @@ mod wallet_manager;
 mod wallet;
 mod responder;
 mod config;
-mod acceptor;
 
 use network::NetworkNode;
 use executor::Executor;
@@ -59,7 +57,6 @@ use message_handler::MessageHandler;
 use service::Service;
 use wallet_manager::WalletManager;
 use responder::Responder;
-use acceptor::Acceptor;
 
 fn main() {
     pretty_env_logger::init();

@@ -3,8 +3,7 @@ use std::sync::mpsc::Sender;
 use params::NetworkParams;
 use ser::SERIALIZE_TRANSACTION_WITNESS;
 use message::Message;
-use network::{PeerAndBytes, PeerIndex};
-use routing::XorName;
+use p2p::{PeerAndBytes, PeerIndex, XorName};
 
 #[derive(Clone)]
 pub struct MessageWrapper {

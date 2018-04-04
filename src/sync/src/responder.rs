@@ -1,4 +1,4 @@
-use network::PeerIndex;
+use p2p::PeerIndex;
 use db::SharedStore;
 use message::{common, types};
 use std::sync::mpsc::Receiver;

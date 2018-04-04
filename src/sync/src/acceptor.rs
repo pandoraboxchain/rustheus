@@ -1,6 +1,5 @@
 use chain::{Block, BlockHeader, Transaction, TransactionInput, TransactionOutput};
 use chain::IndexedBlock;
-use crypto::DHash256;
 use std::sync::mpsc::Receiver;
 use memory_pool::MemoryPoolRef;
 use memory_pool::MemoryPoolOrderingStrategy as OrderingStrategy;
@@ -23,7 +22,7 @@ pub enum Task {
 
 pub struct Acceptor {
     task_receiver: Receiver<Task>,
-    message_wrapper: MessageWrapper,
+    //message_wrapper: MessageWrapper,
     mempool: MemoryPoolRef,
     store: SharedStore,
 
@@ -35,7 +34,7 @@ impl Acceptor {
         mempool: MemoryPoolRef,
         store: SharedStore,
         task_receiver: Receiver<Task>,
-        message_wrapper: MessageWrapper,
+        //message_wrapper: MessageWrapper,
         params: NetworkParams,
     ) -> Self {
         let verifier = ChainVerifier::new(
@@ -44,7 +43,7 @@ impl Acceptor {
         );
         Acceptor {
             task_receiver,
-            message_wrapper,
+            //message_wrapper,
             mempool,
             store,
             verifier,
@@ -97,7 +96,7 @@ impl Acceptor {
         }
     }
 
-    fn try_accept_transaction(&self, transaction: Transaction) {
+    pub fn try_accept_transaction(&self, transaction: Transaction) {
         let hash = transaction.hash();
         if self.mempool.read().contains(&hash) {
             trace!(target: "handler", "Received transaction which already exists in mempool. Ignoring");

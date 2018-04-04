@@ -3,12 +3,10 @@ use message::MessageHeader;
 use message::{deserialize_payload, types, Error, Payload};
 use message::common::InventoryType;
 
-use service::Service;
 use crypto::checksum;
 use db::SharedStore;
-use chain::IndexedBlock;
 use responder::ResponderTask;
-use network::{PeerAndBytes, PeerIndex};
+use p2p::{PeerAndBytes, PeerIndex};
 use message_wrapper::MessageWrapper;
 use acceptor::Task as AcceptorTask;
 use params::NetworkParams;
@@ -139,9 +137,7 @@ impl MessageHandler {
     }
 }
 
-impl Service for MessageHandler {
-    type Item = PeerAndBytes;
-
+impl MessageHandler {
     fn run(&mut self) {
         loop {
             if let Ok(peer_and_bytes) = self.network_data_receiver.recv() {

@@ -5,7 +5,7 @@ use routing::{Authority, ClientError, Config, DevConfig, Event, EventStream, Imm
 use std::collections::HashMap;
 use std::time::Duration;
 use std::sync::mpsc::{Receiver, Sender, TryRecvError};
-use chain::bytes::Bytes;
+use primitives::bytes::Bytes;
 use std::thread;
 
 pub type PeerIndex = XorName;

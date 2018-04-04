@@ -1,19 +1,13 @@
 [package]
 name = "rustheus"
 version = "0.1.0"
-authors = ["konchunas@gmail.com <konchunas@gmail.com>"]
+authors = ["Julian Konchunas <konchunas@gmail.com>"]
 
 [dependencies]
-routing="~0.34.0"
-unwrap = "~1.1.0"
 clap = "~2.25.1"
 shrust = "~0.0.4"
 log = "~0.3.8"
 pretty_env_logger = "0.2.2"
-lru_time_cache = "~0.7.0"
-maidsafe_utilities = "~0.14.0"
-serde = "~1.0.11"
-serde_derive = "~1.0.11"
 ctrlc = { version = "~3.0", features = ["termination"] }
 parking_lot = { version = "~0.5.4", features = ["deadlock_detection"] } #use experimental deadlock detection
 
@@ -29,6 +23,9 @@ script = { path = "src/script" }
 verification = { path = "src/verification" }
 memory_pool = { path = "src/mempool" }
 chain_builder =  { path = "src/chain_builder" }
+rpc = { path = "src/rpc" }
+sync = { path = "src/sync" }
+p2p =  { path = "src/p2p" }
 
 [[bin]]
 path = "src/rustheus/main.rs"
