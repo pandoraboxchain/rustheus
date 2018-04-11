@@ -5,8 +5,12 @@ authors = ["Julian Konchunas <konchunas@gmail.com>"]
 
 [dependencies]
 log = "~0.3.8"
+futures = "~0.1.21"
+tokio-core = "0.1.16"
+futures-cpupool = "~0.1.8"
 
 serialization = { path = "../serialization" }
+serialization_derive = { path = "../serialization_derive" }
 memory_pool = { path = "../mempool" }
 db = { path = "../db" }
 bitcrypto = { path = "../crypto" }

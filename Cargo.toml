@@ -10,10 +10,12 @@ log = "~0.3.8"
 pretty_env_logger = "0.2.2"
 ctrlc = { version = "~3.0", features = ["termination"] }
 parking_lot = { version = "~0.5.4", features = ["deadlock_detection"] } #use experimental deadlock detection
+futures-cpupool = "~0.1.8"
 
 chain = { path = "src/chain" }
 bitcrypto = { path = "src/crypto" }
 serialization = { path = "src/serialization" }
+serialization_derive = { path = "src/serialization_derive" }
 message = { path = "src/message" }
 params = { path = "src/params" }
 primitives = { path = "src/primitives" }

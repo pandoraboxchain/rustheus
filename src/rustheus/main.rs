@@ -7,47 +7,49 @@ extern crate ctrlc;
 extern crate db;
 extern crate keys;
 
+extern crate futures_cpupool;
 extern crate memory_pool;
 extern crate message;
+extern crate p2p;
 extern crate params;
+extern crate parking_lot;
 extern crate pretty_env_logger;
 extern crate primitives;
+extern crate rpc;
 extern crate script;
 extern crate serialization as ser;
 extern crate shrust;
-extern crate verification;
-extern crate parking_lot;
-extern crate rpc;
 extern crate sync;
-extern crate p2p;
+extern crate verification;
 
 #[macro_use]
 extern crate log;
 
 use clap::*;
 
-use std::thread;
+use memory_pool::MemoryPool;
 use params::NetworkParams;
-use std::sync::Arc;
 use parking_lot::RwLock;
 use std::process;
+use std::sync::Arc;
 use std::sync::mpsc;
-use memory_pool::MemoryPool;
+use std::thread;
 
+mod config;
+mod db_utils;
 mod executor;
 mod input_listener;
 mod service;
-mod db_utils;
-mod wallet_manager;
 mod wallet;
-mod config;
+mod wallet_manager;
 
-use p2p::NetworkNode;
 use executor::Executor;
 use executor::Task as ExecutorTask;
+use futures_cpupool::CpuPool;
 use input_listener::InputListener;
-use sync::{MessageWrapper, MessageHandler, Responder, Acceptor};
+use p2p::NetworkNode;
 use service::Service;
+use sync::{Acceptor, MessageHandler, MessageWrapper, Responder};
 use wallet_manager::WalletManager;
 
 fn main() {
@@ -95,10 +97,11 @@ fn main() {
     let (responder_task_sender, responder_task_receiver) = mpsc::channel();
     let (terminate_sender, terminate_receiver) = mpsc::channel();
     let (executor_sender, executor_receiver) = mpsc::channel();
-    let (acceptor_sender, acceptor_receiver) = mpsc::channel();
     let (wallet_manager_sender, wallet_manager_receiver) = mpsc::channel();
 
     let message_wrapper = MessageWrapper::new(config.network, to_network_sender.clone());
+
+    let cpupool = CpuPool::new_num_cpus();
 
     //setup network requests responder
     let responder = Responder {
@@ -107,12 +110,19 @@ fn main() {
         message_wrapper: message_wrapper.clone(),
     };
 
+    let acceptor = Arc::new(Acceptor::new(
+        mempool_ref.clone(),
+        storage.clone(),
+        config.network,
+        cpupool
+    ));
+
     //setup network messages handler
     let mut message_handler = MessageHandler::new(
         storage.clone(),
         from_network_receiver,
         responder_task_sender,
-        acceptor_sender,
+        acceptor,
         message_wrapper.clone(),
         config.network,
     );
@@ -138,13 +148,6 @@ fn main() {
         executor_receiver,
         message_wrapper.clone(),
     );
-    let mut acceptor = Acceptor::new(
-        mempool_ref.clone(),
-        storage.clone(),
-        acceptor_receiver,
-        message_wrapper.clone(),
-        config.network,
-    );
 
     //setup telnet listener
     let input_listener = InputListener::new(
@@ -158,7 +161,7 @@ fn main() {
     let input_listener_thread = thread::spawn(move || input_listener.run());
     let responder_thread = thread::spawn(move || responder.run());
     let executor_thread = thread::spawn(move || executor.run());
-    let acceptor_thread = thread::spawn(move || acceptor.run());
+    //let acceptor_thread = thread::spawn(move || acceptor.run());
     let wallet_manager_thread = thread::spawn(move || wallet_manager.run());
     let message_handler_thread = thread::spawn(move || message_handler.run());
 
@@ -187,7 +190,6 @@ fn main() {
     wallet_manager_thread.join().unwrap();
     responder_thread.join().unwrap();
     executor_thread.join().unwrap();
-    acceptor_thread.join().unwrap();
 
     //TODO ending app properly is shallow. Every module and thread has to end for database to save properly
     //for this to happen every used Sender should be deleted so every thread may break its loop when no senders are available

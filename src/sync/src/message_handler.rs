@@ -8,14 +8,14 @@ use db::SharedStore;
 use responder::ResponderTask;
 use p2p::{PeerAndBytes, PeerIndex};
 use message_wrapper::MessageWrapper;
-use acceptor::Task as AcceptorTask;
+use acceptor::AcceptorRef;
 use params::NetworkParams;
 
 pub struct MessageHandler {
     network_data_receiver: Receiver<PeerAndBytes>,
     store: SharedStore,
     network_responder: Sender<ResponderTask>,
-    acceptor_sender: Sender<AcceptorTask>,
+    acceptor: AcceptorRef,
     message_wrapper: MessageWrapper,
     params: NetworkParams,
 }
@@ -25,7 +25,7 @@ impl MessageHandler {
         store: SharedStore,
         network_data_receiver: Receiver<PeerAndBytes>,
         network_responder: Sender<ResponderTask>,
-        acceptor_sender: Sender<AcceptorTask>,
+        acceptor: AcceptorRef,
         message_wrapper: MessageWrapper,
         params: NetworkParams,
     ) -> Self {
@@ -34,22 +34,18 @@ impl MessageHandler {
             store,
             network_data_receiver,
             network_responder,
-            acceptor_sender,
+            acceptor,
             message_wrapper,
             params,
         }
     }
 
     fn on_transaction(&self, message: types::Tx) {
-        self.acceptor_sender
-            .send(AcceptorTask::TryAcceptTransaction(message.transaction))
-            .unwrap();
+        let _ = self.acceptor.accept_transaction(message.transaction);
     }
 
     fn on_block(&self, message: types::Block) {
-        self.acceptor_sender
-            .send(AcceptorTask::TryAcceptBlock(message.block))
-            .unwrap();
+        let _ = self.acceptor.accept_block(message.block);
     }
 
     fn on_inv(&self, peer_index: PeerIndex, message: types::Inv) {

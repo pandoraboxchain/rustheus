@@ -12,6 +12,7 @@ extern crate bitcrypto as crypto;
 extern crate serialization as ser;
 extern crate primitives;
 extern crate futures;
+extern crate futures_cpupool;
 extern crate tokio_core;
 
 pub mod acceptor;
@@ -22,4 +23,4 @@ mod responder;
 pub use message_handler::MessageHandler;
 pub use message_wrapper::MessageWrapper;
 pub use responder::Responder;
-pub use acceptor::Acceptor;
+pub use acceptor::{Acceptor, AcceptorRef};
