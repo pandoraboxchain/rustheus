@@ -18,8 +18,7 @@ use std::sync::Arc;
 pub struct RawClient<T: RawClientCoreApi> {
 	core: T,
 }
-
-pub trait RawClientCoreApi {
+pub trait RawClientCoreApi: Send + Sync + 'static {
 	fn accept_transaction(&self, transaction: GlobalTransaction) -> Result<GlobalH256, String>;
 	fn create_raw_transaction(
 		&self,
@@ -137,41 +136,36 @@ where
 	}
 }
 
-// impl<T> !Send for RawClient<T> {}
-// impl<T> !Sync for RawClient<T> {}
-// impl<T> !Send for RawClientCoreApi<T> {}
-// impl<T> !Sync for RawClientCoreApi<T> {}
+impl<T> Raw for RawClient<T> where T: RawClientCoreApi {
+	fn send_raw_transaction(&self, raw_transaction: RawTransaction) -> Result<H256, Error> {
+		let raw_transaction_data: Vec<u8> = raw_transaction.into();
+		let transaction = try!(deserialize(Reader::new(&raw_transaction_data)).map_err(|e| invalid_params("tx", e)));
+		self.core.accept_transaction(transaction)
+					.map(|h| h.reversed().into())
+					.map_err(|e| execution(e))
+	}
 
-// impl<T> Raw for RawClient<T> where T: RawClientCoreApi {
-// 	fn send_raw_transaction(&self, raw_transaction: RawTransaction) -> Result<H256, Error> {
-// 		let raw_transaction_data: Vec<u8> = raw_transaction.into();
-// 		let transaction = try!(deserialize(Reader::new(&raw_transaction_data)).map_err(|e| invalid_params("tx", e)));
-// 		self.core.accept_transaction(transaction)
-// 					.map(|h| h.reversed().into())
-// 					.map_err(|e| execution(e))
-// 	}
+	fn create_raw_transaction(&self, inputs: Vec<TransactionInput>, outputs: TransactionOutputs, lock_time: Trailing<u32>) -> Result<RawTransaction, Error> {
+		// reverse hashes of inputs
+		let inputs: Vec<_> = inputs.into_iter()
+			.map(|mut input| {
+				input.txid = input.txid.reversed();
+				input
+			}).collect();
 
-// 	fn create_raw_transaction(&self, inputs: Vec<TransactionInput>, outputs: TransactionOutputs, lock_time: Trailing<u32>) -> Result<RawTransaction, Error> {
-// 		// reverse hashes of inputs
-// 		let inputs: Vec<_> = inputs.into_iter()
-// 			.map(|mut input| {
-// 				input.txid = input.txid.reversed();
-// 				input
-// 			}).collect();
+		let transaction = try!(self.core.create_raw_transaction(inputs, outputs, lock_time).map_err(|e| execution(e)));
+		let transaction = serialize(&transaction);
+		Ok(transaction.into())
+	}
 
-// 		let transaction = try!(self.core.create_raw_transaction(inputs, outputs, lock_time).map_err(|e| execution(e)));
-// 		let transaction = serialize(&transaction);
-// 		Ok(transaction.into())
-// 	}
+	fn decode_raw_transaction(&self, _transaction: RawTransaction) -> Result<Transaction, Error> {
+		rpc_unimplemented!()
+	}
 
-// 	fn decode_raw_transaction(&self, _transaction: RawTransaction) -> Result<Transaction, Error> {
-// 		rpc_unimplemented!()
-// 	}
-
-// 	fn get_raw_transaction(&self, _hash: H256, _verbose: Trailing<bool>) -> Result<GetRawTransactionResponse, Error> {
-// 		rpc_unimplemented!()
-// 	}
-// }
+	fn get_raw_transaction(&self, _hash: H256, _verbose: Trailing<bool>) -> Result<GetRawTransactionResponse, Error> {
+		rpc_unimplemented!()
+	}
+}
 
 #[cfg(test)]
 pub mod tests {

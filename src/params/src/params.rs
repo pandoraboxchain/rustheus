@@ -52,6 +52,13 @@ impl NetworkParams {
 		}
 	}
 
+	pub fn rpc_port(&self) -> u16 {
+		match *self {
+			NetworkParams::Mainnet | NetworkParams::Other(_) => 8992,
+			NetworkParams::Testnet => 18992,
+		}
+	}
+
 	//Genesis block
 	//public: 04c053e75152cd9ee02b0908864aeed81b5d100866c25482ae5ac4a1dfeaee8e99d2afc260dc81fda80e05767b5badd122932372f2330fd1ca1ca8874e39804683
 	//address: 1KFoaRnZLw9DYhNVMfft84YHAVbLMRmWv5

@@ -15,12 +15,12 @@ extern crate params;
 extern crate parking_lot;
 extern crate pretty_env_logger;
 extern crate primitives;
-extern crate rpc;
 extern crate script;
 extern crate serialization as ser;
 extern crate shrust;
 extern crate sync;
 extern crate verification;
+extern crate rpc as ethcore_rpc;
 
 #[macro_use]
 extern crate log;
@@ -42,6 +42,8 @@ mod input_listener;
 mod service;
 mod wallet;
 mod wallet_manager;
+mod rpc;
+mod rpc_apis;
 
 use executor::Executor;
 use executor::Task as ExecutorTask;
@@ -122,7 +124,7 @@ fn main() {
         storage.clone(),
         from_network_receiver,
         responder_task_sender,
-        acceptor,
+        acceptor.clone(),
         message_wrapper.clone(),
         config.network,
     );
@@ -156,6 +158,13 @@ fn main() {
         wallet_manager_sender,
         terminate_sender,
     );
+
+    let rpc_deps = rpc::Dependencies {
+		network: config.network,
+		storage: storage,
+		acceptor,
+	};
+	let _rpc_server = rpc::new_http(config.rpc_config, rpc_deps).expect("Can't launch json-rpc service");
 
     //launch services in different threads //TODO named threads
     let input_listener_thread = thread::spawn(move || input_listener.run());
