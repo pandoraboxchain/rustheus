@@ -26,7 +26,7 @@ pub fn is_valid_proof_of_work_hash(bits: Compact, hash: &H256) -> bool {
 		_err => return false,
 	};
 
-	let value = U256::from(&*hash.reversed() as &[u8]);
+	let value = U256::from(&hash[..]);
 	value <= target
 }
 
@@ -43,7 +43,7 @@ pub fn is_valid_proof_of_work(max_work_bits: Compact, bits: Compact, hash: &H256
 		_err => return false,
 	};
 
-	let value = U256::from(&*hash.reversed() as &[u8]);
+	let value = U256::from(&hash[..]);
 	target <= maximum && value <= target
 }
 

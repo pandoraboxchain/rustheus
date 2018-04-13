@@ -13,7 +13,7 @@ pub struct IndexedTransaction {
 impl fmt::Debug for IndexedTransaction {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		f.debug_struct("IndexedTransaction")
-			.field("hash", &self.hash.reversed())
+			.field("hash", &self.hash)
 			.field("raw", &self.raw)
 			.finish()
 	}

@@ -13,7 +13,7 @@ pub struct IndexedBlockHeader {
 impl fmt::Debug for IndexedBlockHeader {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		f.debug_struct("IndexedBlockHeader")
-			.field("hash", &self.hash.reversed())
+			.field("hash", &self.hash)
 			.field("raw", &self.raw)
 			.finish()
 	}

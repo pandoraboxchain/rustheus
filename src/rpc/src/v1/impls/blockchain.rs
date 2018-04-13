@@ -178,7 +178,7 @@ impl<T> BlockChainClient<T> where T: BlockChainClientCoreApi {
 
 impl<T> BlockChain for BlockChainClient<T> where T: BlockChainClientCoreApi {
 	fn best_block_hash(&self) -> Result<H256, Error> {
-		Ok(self.core.best_block_hash().reversed().into())
+		Ok(self.core.best_block_hash().into())
 	}
 
     fn block_count(&self) -> Result<u32, Error> {
@@ -187,7 +187,7 @@ impl<T> BlockChain for BlockChainClient<T> where T: BlockChainClientCoreApi {
 
 	fn block_hash(&self, height: u32) -> Result<H256, Error> {
 		self.core.block_hash(height)
-			.map(|h| h.reversed().into())
+			.map(|h| h.into())
 			.ok_or(block_at_height_not_found(height))
 	}
 
@@ -198,19 +198,19 @@ impl<T> BlockChain for BlockChainClient<T> where T: BlockChainClientCoreApi {
 	fn block(&self, hash: H256, verbose: Trailing<bool>) -> Result<GetBlockResponse, Error> {
 		let global_hash: GlobalH256 = hash.clone().into();
 		if verbose.unwrap_or_default() {
-			let verbose_block = self.core.verbose_block(global_hash.reversed());
+			let verbose_block = self.core.verbose_block(global_hash);
 			if let Some(mut verbose_block) = verbose_block {
-				verbose_block.previousblockhash = verbose_block.previousblockhash.map(|h| h.reversed());
-				verbose_block.nextblockhash = verbose_block.nextblockhash.map(|h| h.reversed());
-				verbose_block.hash = verbose_block.hash.reversed();
-				verbose_block.merkleroot = verbose_block.merkleroot.reversed();
-				verbose_block.tx = verbose_block.tx.into_iter().map(|h| h.reversed()).collect();
+				verbose_block.previousblockhash = verbose_block.previousblockhash.map(|h| h);
+				verbose_block.nextblockhash = verbose_block.nextblockhash.map(|h| h);
+				verbose_block.hash = verbose_block.hash;
+				verbose_block.merkleroot = verbose_block.merkleroot;
+				verbose_block.tx = verbose_block.tx.into_iter().map(|h| h).collect();
 				Some(GetBlockResponse::Verbose(verbose_block))
 			} else {
 				None
 			}
 		} else {
-			self.core.raw_block(global_hash.reversed())
+			self.core.raw_block(global_hash)
 				.map(|block| GetBlockResponse::Raw(block))
 		}
 		.ok_or(block_not_found(hash))
@@ -219,9 +219,9 @@ impl<T> BlockChain for BlockChainClient<T> where T: BlockChainClientCoreApi {
 	fn transaction_out(&self, transaction_hash: H256, out_index: u32, _include_mempool: Trailing<bool>) -> Result<GetTxOutResponse, Error> {
 		// TODO: include_mempool
 		let transaction_hash: GlobalH256 = transaction_hash.into();
-		self.core.verbose_transaction_out(OutPoint { hash: transaction_hash.reversed(), index: out_index })
+		self.core.verbose_transaction_out(OutPoint { hash: transaction_hash, index: out_index })
 			.map(|mut response| {
-				response.bestblock = response.bestblock.reversed();
+				response.bestblock = response.bestblock;
 				response
 			})
 	}

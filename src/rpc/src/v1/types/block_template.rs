@@ -83,7 +83,7 @@ impl From<memory_pool::BlockTemplate> for BlockTemplate {
 	fn from(block: memory_pool::BlockTemplate) -> Self {
 		BlockTemplate {
 			version: block.version,
-			previousblockhash: block.previous_header_hash.reversed().into(),
+			previousblockhash: block.previous_header_hash.into(),
 			curtime: block.time,
 			bits: block.bits.into(),
 			height: block.height,

@@ -14,7 +14,7 @@ impl fmt::Debug for BestBlock {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		f.debug_struct("BestBlock")
 			.field("number", &self.number)
-			.field("hash", &self.hash.reversed())
+			.field("hash", &self.hash)
 			.finish()
 	}
 }

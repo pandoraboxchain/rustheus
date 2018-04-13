@@ -17,8 +17,8 @@ impl fmt::Debug for SideChainOrigin {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		f.debug_struct("SideChainOrigin")
 			.field("ancestor", &self.ancestor)
-			.field("canonized_route", &self.canonized_route.iter().map(|h| h.reversed()).collect::<Vec<_>>())
-			.field("decanonized_route", &self.decanonized_route.iter().map(|h| h.reversed()).collect::<Vec<_>>())
+			.field("canonized_route", &self.canonized_route.iter().map(|h| h).collect::<Vec<_>>())
+			.field("decanonized_route", &self.decanonized_route.iter().map(|h| h).collect::<Vec<_>>())
 			.field("block_number", &self.block_number)
 			.finish()
 	}

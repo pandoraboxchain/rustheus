@@ -59,7 +59,7 @@ impl RawClientCore {
 			.into_iter()
 			.map(|input| chain::TransactionInput {
 				previous_output: chain::OutPoint {
-					hash: Into::<GlobalH256>::into(input.txid).reversed(),
+					hash: Into::<GlobalH256>::into(input.txid),
 					index: input.vout,
 				},
 				script_sig: GlobalBytes::new(), // default script
@@ -141,7 +141,7 @@ impl<T> Raw for RawClient<T> where T: RawClientCoreApi {
 		let raw_transaction_data: Vec<u8> = raw_transaction.into();
 		let transaction = try!(deserialize(Reader::new(&raw_transaction_data)).map_err(|e| invalid_params("tx", e)));
 		self.core.accept_transaction(transaction)
-					.map(|h| h.reversed().into())
+					.map(|h| h.into())
 					.map_err(|e| execution(e))
 	}
 
@@ -149,7 +149,7 @@ impl<T> Raw for RawClient<T> where T: RawClientCoreApi {
 		// reverse hashes of inputs
 		let inputs: Vec<_> = inputs.into_iter()
 			.map(|mut input| {
-				input.txid = input.txid.reversed();
+				input.txid = input.txid;
 				input
 			}).collect();
 

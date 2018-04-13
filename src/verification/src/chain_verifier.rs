@@ -39,7 +39,7 @@ impl BackwardsCompatibleChainVerifier {
 
 		assert_eq!(Some(self.store.best_block().hash), self.store.block_hash(self.store.best_block().number));
 		let block_origin = self.store.block_origin(&block.header)?;
-		trace!(target: "verification", "verify_block: {:?} best_block: {:?} block_origin: {:?}", block.hash().reversed(), self.store.best_block(), block_origin);
+		trace!(target: "verification", "verify_block: {:?} best_block: {:?} block_origin: {:?}", block.hash(), self.store.best_block(), block_origin);
 		match block_origin {
 			BlockOrigin::KnownBlock => {
 				warn!("Received block of known origin. It's worth to eliminate such cases for perfomance reasons")

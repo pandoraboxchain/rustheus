@@ -26,9 +26,9 @@ impl fmt::Debug for BlockHeader {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		f.debug_struct("BlockHeader")
 			.field("version", &self.version)
-			.field("previous_header_hash", &self.previous_header_hash.reversed())
-			.field("merkle_root_hash", &self.merkle_root_hash.reversed())
-			.field("witness_merkle_root_hash", &self.witness_merkle_root_hash.reversed())
+			.field("previous_header_hash", &self.previous_header_hash)
+			.field("merkle_root_hash", &self.merkle_root_hash)
+			.field("witness_merkle_root_hash", &self.witness_merkle_root_hash)
 			.field("time", &self.time)
 			.field("bits", &self.bits)
 			.field("nonce", &self.nonce)
