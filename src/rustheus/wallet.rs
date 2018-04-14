@@ -1,39 +1,42 @@
 use keys::generator::{Random, Generator};
 use keys::network::Network;
-use keys::{KeyPair, Private, Error};
+use keys::{KeyPair, Private, Error, Address};
 
 pub struct Wallet
 {
-    pub keys: KeyPair
+    pub keys: Vec<KeyPair>
 }
 
 impl Wallet
 {
-    pub fn new() -> Result<Self, Error>
+    pub fn new() -> Self
     {
-        let generator = Random::new(Network::Mainnet);
-        match generator.generate()
-        {
-            Ok(keys) =>
-            {
-                info!("got keys {}", keys);
-                info!("address is {}", keys.address());
-                Ok(Wallet { keys })
-            } 
-            Err(error) => Err(error)
-        }
+       Wallet { keys: vec![] }
     }
 
-    pub fn from_private(private: Private) -> Result<Self, Error>
+    pub fn new_keypair(&mut self) -> Address {
+        //TODO testnet support
+        let generator = Random::new(Network::Mainnet);
+        let keypair = generator.generate().expect("Could not generate keypair");
+        let address = keypair.address();
+        info!("Generated keypair {}", keypair);
+        info!("Address is {}", address);
+        self.keys.push(keypair);
+        address
+    }
+
+    pub fn add_keypair_from_private(&mut self, private: Private) -> Result<Address, Error>
     {
         match KeyPair::from_private(private)
         {
-            Ok(keys) =>
+            Ok(keypair) =>
             {
-                info!("got keys {}", keys);
-                info!("public hash is {}", keys.address().hash);
-                info!("address is {}", keys.address());
-                Ok(Wallet { keys })
+                let address = keypair.address();
+                info!("Added keys {}", keypair);
+                info!("Public key hash is {}", address.hash);
+                info!("Address is {}", address);
+                self.keys.push(keypair);
+                Ok(address)
             } 
             Err(error) => Err(error)
         }

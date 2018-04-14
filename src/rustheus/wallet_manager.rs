@@ -1,32 +1,31 @@
-use keys::{Address, Private};
-use std::sync::mpsc::{Receiver};
-use service::Service;
 use chain::Transaction;
-use sync::MessageWrapper;
-use message::types::Tx;
-use memory_pool::MemoryPoolRef;
-use wallet::Wallet;
-use db::SharedStore;
-use script::{Builder, Script, SighashBase, SignatureVersion, TransactionInputSigner};
 use chain::constants::SEQUENCE_LOCKTIME_DISABLE_FLAG;
+use db::SharedStore;
+use keys::{Address, Private};
+use memory_pool::MemoryPoolRef;
+use message::types::Tx;
+use script::{Builder, Script, SighashBase, SignatureVersion, TransactionInputSigner};
+use service::Service;
+use std::sync::mpsc::Receiver;
+use sync::MessageWrapper;
+use wallet::Wallet;
 
 //temp
 use chain::{TransactionInput, TransactionOutput};
 
 #[derive(Debug, PartialEq)]
 pub enum Task {
-	CreateWallet(),
-	SendCash(Address, u64),
-	LoadWallet(Private),
-	CalculateBalance(),
+    CreateWallet(),
+    SendCash(Address, u64),
+    LoadWallet(Private),
+    CalculateBalance(),
 }
-
 
 pub struct WalletManager {
     receiver: Receiver<Task>,
     mempool: MemoryPoolRef,
     wrapper: MessageWrapper,
-    wallets: Vec<Wallet>,
+    wallet: Wallet,
     storage: SharedStore,
 }
 
@@ -37,36 +36,35 @@ impl WalletManager {
         receiver: Receiver<Task>,
         wrapper: MessageWrapper,
     ) -> Self {
-        let wallets = vec![];
+        let wallet = Wallet::new();
         WalletManager {
             receiver,
             mempool,
             wrapper,
-            wallets,
+            wallet,
             storage,
         }
     }
 
     fn create_wallet(&mut self) {
-        let wallet = Wallet::new().unwrap();
-        self.wallets.push(wallet);
+        self.wallet.new_keypair();
     }
 
     fn load_from_key(&mut self, private: Private) {
-        match Wallet::from_private(private) {
-            Ok(wallet) => self.wallets.push(wallet),
-            Err(err) => error!("failed to create wallet from private: {}", err),
+        match self.wallet.add_keypair_from_private(private) {
+            Ok(_) => {}
+            Err(err) => error!("Failed to create wallet from private: {}", err),
         }
     }
 
     fn calculate_balance(&self) {
-        if self.wallets.is_empty() {
+        if self.wallet.keys.is_empty() {
             error!("No wallet was created or loaded. Use `walletcreate` or `walletload` to create one.");
             return;
         }
-        let wallet = &self.wallets[0];
+        let wallet = &self.wallet;
 
-        let user_address_hash = wallet.keys.address().hash;
+        let user_address_hash = wallet.keys[0].address().hash;
         let out_points = self.storage
             .transaction_with_output_address(&user_address_hash);
         println!("out_points len is {}", out_points.len());
@@ -83,13 +81,13 @@ impl WalletManager {
 
     //TODO needs refactoring so it not just returns in case of error
     fn send_cash(&self, recipient: Address, amount: u64) {
-        if self.wallets.is_empty() {
+        if self.wallet.keys.is_empty() {
             error!("No wallet was created or loaded. Use `walletcreate` or `walletfromkey` to create one.");
             return;
         }
 
-        let wallet = &self.wallets[0];
-        let user_address_hash = wallet.keys.address().hash;
+        let wallet = &self.wallet;
+        let user_address_hash = wallet.keys[0].address().hash;
         let unspent_out_points = self.storage
             .transaction_with_output_address(&user_address_hash);
         if unspent_out_points.is_empty() {
@@ -116,6 +114,7 @@ impl WalletManager {
         let leftover = unspent_outputs[0].value - amount;
         if leftover > 0
         //if something left, send it back
+        //TODO create new address and send it there
         {
             outputs.push(TransactionOutput {
                 value: leftover,
@@ -142,7 +141,7 @@ impl WalletManager {
 
         let signer: TransactionInputSigner = transaction.into();
         let prevout_script = Script::new(unspent_outputs[0].script_pubkey.clone());
-    	let prevout_witness = prevout_script.parse_witness_program();
+        let prevout_witness = prevout_script.parse_witness_program();
         if prevout_witness == None {
             error!("Cannot parse previous output witness");
             return;
@@ -151,14 +150,14 @@ impl WalletManager {
         let prevout_witness_version = prevout_witness.unwrap().0;
         if prevout_witness_version != 0 {
             error!("Previous output witness version is too high and cannot be handled");
-            return;           
+            return;
         }
 
         let prevout_witness_program = prevout_witness.unwrap().1;
         let script_pubkey = Builder::build_p2pkh(&prevout_witness_program.into());
 
         let signed_input = signer.signed_input(
-            &wallet.keys,
+            &wallet.keys[0],
             /*input_index*/ 0,
             unspent_outputs[0].value,
             &script_pubkey,
