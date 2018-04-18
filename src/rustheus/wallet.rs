@@ -1,6 +1,7 @@
 use keys::generator::{Random, Generator};
 use keys::network::Network;
 use keys::{KeyPair, Private, Error, Address};
+use primitives::hash::H160;
 
 pub struct Wallet
 {
@@ -40,5 +41,9 @@ impl Wallet
             } 
             Err(error) => Err(error)
         }
+    }
+
+    pub fn find_keypair_with_public_hash(&self, pubkey_hash: H160) -> Option<&KeyPair> {
+        self.keys.iter().find(|&keypair| keypair.public().address_hash() == pubkey_hash)
     }
 }

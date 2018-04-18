@@ -1,4 +1,4 @@
-use std::fmt;
+use std::{fmt,error};
 use secp256k1::Error as SecpError;
 
 #[derive(Debug, PartialEq)]
@@ -39,6 +39,22 @@ impl From<SecpError> for Error {
 			SecpError::InvalidSecretKey => Error::InvalidSecret,
 			SecpError::InvalidMessage => Error::InvalidMessage,
 			_ => Error::InvalidSignature,
+		}
+	}
+}
+
+impl error::Error for Error {
+	fn description(&self) -> &str {
+		match *self {
+			Error::InvalidPublic => "Invalid Public",
+			Error::InvalidSecret => "Invalid Secret",
+			Error::InvalidMessage => "Invalid Message",
+			Error::InvalidSignature => "Invalid Signature",
+			Error::InvalidNetwork => "Invalid Network",
+			Error::InvalidChecksum => "Invalid Checksum",
+			Error::InvalidPrivate => "Invalid Private",
+			Error::InvalidAddress => "Invalid Address",
+			Error::FailedKeyGeneration => "Key generation failed",
 		}
 	}
 }

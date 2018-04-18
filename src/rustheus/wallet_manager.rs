@@ -1,5 +1,6 @@
-use chain::Transaction;
 use chain::constants::SEQUENCE_LOCKTIME_DISABLE_FLAG;
+use chain::{OutPoint, Transaction};
+//use chain_builder::TransactionBuilder;
 use db::SharedStore;
 use keys::{Address, Private};
 use memory_pool::MemoryPoolRef;
@@ -12,6 +13,20 @@ use wallet::Wallet;
 
 //temp
 use chain::{TransactionInput, TransactionOutput};
+
+#[derive(Debug)]
+pub enum FundError {
+    NoFunds,
+    NotEnoughFunds,
+}
+
+#[derive(Debug)]
+pub enum SignError {
+    NoSuchPrevout,
+    NoKeysToUnlockPrevout,
+    PrevoutWitnessParseError,
+    PrevoutWitnessVersionTooHigh,
+}
 
 #[derive(Debug, PartialEq)]
 pub enum Task {
@@ -74,103 +89,159 @@ impl WalletManager {
         let balance = out_points
             .iter()
             .map(|out_point| self.storage.transaction_output(out_point, 0).unwrap())
-            .fold(0, |credit, output| credit + output.value);
+            .fold(0, |credit, outpoint| credit + outpoint.value);
 
         info!("wallet balance is {}", balance);
     }
 
-    //TODO needs refactoring so it not just returns in case of error
-    fn send_cash(&self, recipient: Address, amount: u64) {
-        if self.wallet.keys.is_empty() {
-            error!("No wallet was created or loaded. Use `walletcreate` or `walletfromkey` to create one.");
-            return;
+    fn get_unspent_out_points(&self) -> Vec<OutPoint> {
+        self.wallet
+            .keys
+            .iter()
+            .flat_map(|keypair| {
+                self.storage
+                    .transaction_with_output_address(&keypair.address().hash)
+            })
+            .collect()
+    }
+
+    //TODO accept fee
+    fn fund_transaction(&mut self, transaction: Transaction) -> Result<Transaction, FundError> {
+        let unspent_out_points = self.get_unspent_out_points();
+        if unspent_out_points.is_empty() {
+            return Err(FundError::NoFunds);
         }
 
-        let wallet = &self.wallet;
-        let user_address_hash = wallet.keys[0].address().hash;
-        let unspent_out_points = self.storage
-            .transaction_with_output_address(&user_address_hash);
-        if unspent_out_points.is_empty() {
-            error!("No unspent outputs found. I.e. no money on current address");
-            return;
-        }
-        let unspent_outputs: Vec<TransactionOutput> = unspent_out_points
+        let needed_amount = transaction
+            .outputs
             .iter()
-            .map(|out_point| self.storage.transaction_output(out_point, 0).unwrap())
+            .fold(0, |acc, output| acc + output.value);
+
+        let mut inputs: Vec<TransactionInput> = vec![];
+
+        let mut inputs_sum = 0;
+        for out_point in unspent_out_points {
+            let output = self.storage.transaction_output(&out_point, 0).unwrap();
+            let input = TransactionInput {
+                previous_output: out_point,
+                script_sig: Default::default(),
+                sequence: SEQUENCE_LOCKTIME_DISABLE_FLAG, //TODO remove this for atomic swap probably
+                script_witness: vec![],
+            };
+            inputs.push(input);
+
+            inputs_sum += output.value;
+            if inputs_sum >= needed_amount {
+                break;
+            }
+        }
+
+        let mut outputs = transaction.outputs.clone();
+
+        if inputs_sum > needed_amount {
+            let new_address = self.wallet.new_keypair();
+            let leftover = TransactionOutput {
+                value: inputs_sum - needed_amount,
+                script_pubkey: Builder::build_p2wpkh(&new_address.hash).to_bytes(),
+            };
+            outputs.push(leftover);
+        } else {
+            return Err(FundError::NotEnoughFunds);
+        }
+
+        Ok(Transaction {
+            version: 0,
+            inputs,
+            outputs,
+            lock_time: 0,
+        })
+    }
+
+    fn sign_transaction(&mut self, transaction: Transaction) -> Result<Transaction, SignError> {
+        let signer: TransactionInputSigner = transaction.clone().into();
+        let signed_inputs: Result<Vec<_>, _> = transaction
+            .inputs
+            .into_iter()
+            .enumerate()
+            .map(|(i, input)| self.sign_input(input, i, &signer))
             .collect();
 
-        if unspent_outputs[0].value < amount {
-            error!("Not enough money on first input.");
-            return;
+        match signed_inputs {
+            Err(err) => Err(err),
+            Ok(signed_inputs) => Ok(Transaction {
+                version: transaction.version,
+                inputs: signed_inputs,
+                outputs: transaction.outputs,
+                lock_time: transaction.lock_time,
+            }),
         }
+    }
 
-        let mut outputs: Vec<TransactionOutput> = vec![
-            TransactionOutput {
-                value: amount,
-                script_pubkey: Builder::build_p2wpkh(&recipient.hash).to_bytes(),
-            },
-        ];
-
-        let leftover = unspent_outputs[0].value - amount;
-        if leftover > 0
-        //if something left, send it back
-        //TODO create new address and send it there
-        {
-            outputs.push(TransactionOutput {
-                value: leftover,
-                script_pubkey: Builder::build_p2wpkh(&user_address_hash).to_bytes(),
-            });
+    fn sign_input(
+        &self,
+        input: TransactionInput,
+        input_index: usize,
+        signer: &TransactionInputSigner,
+    ) -> Result<TransactionInput, SignError> {
+        let prevout = self.storage.transaction_output(&input.previous_output, 0);
+        if prevout.is_none() {
+            return Err(SignError::NoSuchPrevout);
         }
-
-        let version = 0;
-        let lock_time = 0;
-
-        let transaction = Transaction {
-            version,
-            inputs: vec![
-                TransactionInput {
-                    previous_output: unspent_out_points[0].clone(),
-                    script_sig: Default::default(),
-                    sequence: SEQUENCE_LOCKTIME_DISABLE_FLAG,
-                    script_witness: vec![],
-                },
-            ],
-            outputs: outputs.clone(),
-            lock_time,
-        };
-
-        let signer: TransactionInputSigner = transaction.into();
-        let prevout_script = Script::new(unspent_outputs[0].script_pubkey.clone());
+        let prevout = prevout.unwrap();
+        let prevout_script = Script::new(prevout.script_pubkey.clone());
         let prevout_witness = prevout_script.parse_witness_program();
         if prevout_witness == None {
-            error!("Cannot parse previous output witness");
-            return;
+            return Err(SignError::PrevoutWitnessParseError);
         }
 
         let prevout_witness_version = prevout_witness.unwrap().0;
         if prevout_witness_version != 0 {
-            error!("Previous output witness version is too high and cannot be handled");
-            return;
+            return Err(SignError::PrevoutWitnessVersionTooHigh);
         }
 
         let prevout_witness_program = prevout_witness.unwrap().1;
+        let keys = self.wallet
+            .find_keypair_with_public_hash(prevout_witness_program.into());
+        if keys.is_none() {
+            return Err(SignError::NoKeysToUnlockPrevout);
+        }
+        let keys = keys.unwrap();
         let script_pubkey = Builder::build_p2pkh(&prevout_witness_program.into());
 
         let signed_input = signer.signed_input(
-            &wallet.keys[0],
-            /*input_index*/ 0,
-            unspent_outputs[0].value,
+            keys,
+            input_index,
+            prevout.value,
             &script_pubkey,
             SignatureVersion::WitnessV0,
             SighashBase::All.into(),
         );
 
-        let signed_transaction = Transaction {
-            version,
-            inputs: vec![signed_input],
-            outputs,
-            lock_time,
+        Ok(signed_input)
+    }
+
+    //TODO needs refactoring so it not just returns in case of error
+    fn send_cash(&mut self, recipient: Address, amount: u64) {
+        if self.wallet.keys.is_empty() {
+            error!("No wallet was created or loaded. Use `walletcreate` or `walletfromkey` to create one.");
+            return;
+        }
+
+        let transaction = Transaction {
+            version: 0,
+            inputs: vec![],
+            outputs: vec![
+                TransactionOutput {
+                    value: amount,
+                    script_pubkey: Builder::build_p2wpkh(&recipient.hash).to_bytes(),
+                },
+            ],
+            lock_time: 0,
         };
+
+        //TODO pattern match returned results
+        let funded_transaction = self.fund_transaction(transaction).unwrap();
+        let signed_transaction = self.sign_transaction(funded_transaction).unwrap();
 
         let hash = signed_transaction.hash();
         if self.mempool.read().contains(&hash) {

@@ -114,6 +114,7 @@ impl RawClientCore {
 impl RawClientCoreApi for RawClientCore {
 	fn accept_transaction(&self, transaction: GlobalTransaction) -> Result<GlobalH256, String> {
 		let task = self.acceptor.accept_transaction(transaction);
+		//TODO broadcast transaction
 		task.wait().map_err(|err| format!("{:?}", err))
 	}
 
