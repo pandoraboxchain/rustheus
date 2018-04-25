@@ -1,4 +1,4 @@
-#![feature(optin_builtin_traits)]
+#[feature(optin_builtin_traits)]
 
 use jsonrpc_core::Error;
 use jsonrpc_macros::Trailing;
@@ -115,7 +115,7 @@ impl RawClientCoreApi for RawClientCore {
 	fn accept_transaction(&self, transaction: GlobalTransaction) -> Result<GlobalH256, String> {
 		let task = self.acceptor.accept_transaction(transaction);
 		//TODO broadcast transaction
-		task.wait().map_err(|err| format!("{:?}", err))
+		task.wait().map(|transaction| transaction.hash()).map_err(|err| format!("{:?}", err))
 	}
 
 	fn create_raw_transaction(

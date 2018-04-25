@@ -59,6 +59,11 @@ impl TransactionBuilder {
 		builder.add_output(value)
 	}
 
+	pub fn with_output_and_pubkey(value: u64, script_pubkey: Bytes) -> TransactionBuilder {
+		let builder = TransactionBuilder::default();
+		builder.add_output_and_pubkey(value, script_pubkey)
+	}
+
 	pub fn with_default_input(output_index: u32) -> TransactionBuilder {
 		let builder = TransactionBuilder::default();
 		builder.add_input(&Transaction::default(), output_index)
@@ -90,6 +95,22 @@ impl TransactionBuilder {
 		self.transaction.outputs = vec![TransactionOutput {
 			value: value,
 			script_pubkey: Bytes::new_with_len(0),
+		}];
+		self
+	}
+
+	pub fn add_output_and_pubkey(mut self, value: u64, script_pubkey: Bytes) -> TransactionBuilder {
+		self.transaction.outputs = vec![TransactionOutput {
+			value: value,
+			script_pubkey: script_pubkey,
+		}];
+		self
+	}
+
+	pub fn set_output_and_pubkey(mut self, value: u64, script_pubkey: Bytes) -> TransactionBuilder {
+		self.transaction.outputs = vec![TransactionOutput {
+			value: value,
+			script_pubkey: script_pubkey,
 		}];
 		self
 	}

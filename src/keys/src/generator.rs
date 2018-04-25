@@ -1,4 +1,5 @@
 use rand::os::OsRng;
+use rand::Rng;
 use network::Network;
 use {KeyPair, SECP256K1, Error};
 
@@ -15,6 +16,13 @@ impl Random {
 		Random {
 			network: network,
 		}
+	}
+
+	pub fn generate_bytes(bytes: &mut [u8]) -> Result<(), Error>
+	{
+		let mut rng = try!(OsRng::new().map_err(|_| Error::FailedKeyGeneration));		
+		rng.fill_bytes(bytes);
+		Ok(())
 	}
 }
 

@@ -50,7 +50,7 @@ impl Acceptor {
     pub fn accept_transaction(
         &self,
         transaction: Transaction,
-    ) -> impl Future<Item = H256, Error = TransactionError> {
+    ) -> impl Future<Item = Transaction, Error = TransactionError> {
         let future = self.async_accept_transaction(transaction);
         self.cpupool.spawn(future)
     }
@@ -60,14 +60,14 @@ impl Acceptor {
         self.cpupool.spawn(future)
     }
 
-    fn async_accept_transaction(
+    pub fn async_accept_transaction(
         &self,
         transaction: Transaction,
-    ) -> impl Future<Item = H256, Error = TransactionError> {
+    ) -> impl Future<Item = Transaction, Error = TransactionError> {
         done(self.try_accept_transaction(transaction))
     }
 
-    fn async_accept_block(&self, block: Block) -> impl Future<Item = H256, Error = Error> {
+    pub fn async_accept_block(&self, block: Block) -> impl Future<Item = H256, Error = Error> {
         done(self.try_accept_block(block))
     }
 
@@ -108,11 +108,11 @@ impl Acceptor {
         }
     }
 
-    fn try_accept_transaction(&self, transaction: Transaction) -> Result<H256, TransactionError> {
+    fn try_accept_transaction(&self, transaction: Transaction) -> Result<Transaction, TransactionError> {
         let hash = transaction.hash();
         if self.mempool.read().contains(&hash) {
             trace!(target: "handler", "Received transaction which already exists in mempool. Ignoring");
-            return Ok(hash);
+            return Ok(transaction);
         }
         match MemoryPoolTransactionOutputProvider::for_transaction(
             self.store.clone(),
@@ -137,7 +137,7 @@ impl Acceptor {
         &self,
         transaction: Transaction,
         tx_output_provider: MemoryPoolTransactionOutputProvider,
-    ) -> Result<H256, TransactionError> {
+    ) -> Result<Transaction, TransactionError> {
         let height = self.store.best_block().number;
         match self.verifier.verify_mempool_transaction(
             &tx_output_provider,
@@ -153,10 +153,10 @@ impl Acceptor {
                 for input in &transaction.inputs {
                     memory_pool.remove_by_prevout(&input.previous_output);
                 }
-                let hash = transaction.hash();
+                let transaction_clone = transaction.clone();
                 // now insert transaction itself
                 memory_pool.insert_verified(transaction.into());
-                return Ok(hash);
+                return Ok(transaction_clone);
             }
             Err(e) => {
                 error!(

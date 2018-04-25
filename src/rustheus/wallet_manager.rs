@@ -26,6 +26,13 @@ pub enum SignError {
     NoKeysToUnlockPrevout,
     PrevoutWitnessParseError,
     PrevoutWitnessVersionTooHigh,
+    FundError(FundError),
+}
+
+impl From<FundError> for SignError {
+    fn from(err: FundError) -> SignError {
+        SignError::FundError(err)
+    }
 }
 
 #[derive(Debug, PartialEq)]
@@ -106,7 +113,7 @@ impl WalletManager {
     }
 
     //TODO accept fee
-    fn fund_transaction(&mut self, transaction: Transaction) -> Result<Transaction, FundError> {
+    pub fn fund_transaction(&mut self, transaction: Transaction) -> Result<Transaction, FundError> {
         let unspent_out_points = self.get_unspent_out_points();
         if unspent_out_points.is_empty() {
             return Err(FundError::NoFunds);
@@ -138,6 +145,7 @@ impl WalletManager {
 
         let mut outputs = transaction.outputs.clone();
 
+        //TODO create option to return leftovers to the same address
         if inputs_sum > needed_amount {
             let new_address = self.wallet.new_keypair();
             let leftover = TransactionOutput {
@@ -145,7 +153,7 @@ impl WalletManager {
                 script_pubkey: Builder::build_p2wpkh(&new_address.hash).to_bytes(),
             };
             outputs.push(leftover);
-        } else {
+        } else if inputs_sum < needed_amount {
             return Err(FundError::NotEnoughFunds);
         }
 
@@ -157,7 +165,7 @@ impl WalletManager {
         })
     }
 
-    fn sign_transaction(&mut self, transaction: Transaction) -> Result<Transaction, SignError> {
+    pub fn sign_transaction(&self, transaction: Transaction) -> Result<Transaction, SignError> {
         let signer: TransactionInputSigner = transaction.clone().into();
         let signed_inputs: Result<Vec<_>, _> = transaction
             .inputs
@@ -177,7 +185,7 @@ impl WalletManager {
         }
     }
 
-    fn sign_input(
+    pub fn sign_input(
         &self,
         input: TransactionInput,
         input_index: usize,
