@@ -162,7 +162,7 @@ impl AtomicSwapper {
         let task = self.acceptor.async_accept_transaction(contract.contractTx.clone())
             .map(move |transaction| message_wrapper.broadcast(&Tx::with_transaction(transaction)));
 
-        let _ = self.wallet_manager.spawn(task);
+        let _ = self.cpupool.spawn(task);
     }
     
     fn participate(&self, address: Address, amount: u64, secret: H256) {

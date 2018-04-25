@@ -21,6 +21,8 @@ extern crate shrust;
 extern crate sync;
 extern crate verification;
 extern crate rpc as ethcore_rpc;
+extern crate futures;
+extern crate chain_builder;
 
 #[macro_use]
 extern crate log;
@@ -44,6 +46,7 @@ mod wallet;
 mod wallet_manager;
 mod rpc;
 mod rpc_apis;
+mod atomic_swapper;
 
 use executor::Executor;
 use executor::Task as ExecutorTask;
@@ -51,7 +54,7 @@ use futures_cpupool::CpuPool;
 use input_listener::InputListener;
 use p2p::NetworkNode;
 use service::Service;
-use sync::{Acceptor, MessageHandler, MessageWrapper, Responder};
+use sync::{Acceptor, MessageHandler, MessageWrapper, Responder, FuturesMessageWrapper};
 use wallet_manager::WalletManager;
 
 fn main() {
