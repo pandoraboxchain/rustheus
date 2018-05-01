@@ -5,20 +5,19 @@ use chain_builder::TransactionBuilder;
 use keys::generator::Random;
 use primitives::hash::{H256, H160};
 use keys::{Address, AddressHash};
-use sync::{AcceptorRef, FuturesMessageWrapper};
+use sync::{AcceptorRef, MessageWrapper};
 use chain::bytes::Bytes;
 use chain::{Transaction};
 use crypto::dhash256;
 use std::time::{SystemTime, UNIX_EPOCH};
 use wallet::Wallet;
-use wallet_manager::WalletManager;
 use message::types::Tx;
 use script::Script;
 use script::Opcode;
-use wallet_manager::{SignError, FundError};
+use transaction_helper::{TransactionHelperRef, SignError, FundError};
+use std::sync::mpsc::Receiver;
 
 use futures::prelude::*;
-use futures::done;
 use futures_cpupool::CpuPool;
 
 const secretSize: usize = 32;
@@ -45,11 +44,11 @@ impl From<FundError> for ContractError {
 #[derive(Debug, PartialEq)]
 pub enum Task {
     //atomic swaps
-    // Initiate(Address, u64),
-    // Participate(Address, u64, H256),
+    Initiate(Address, u64),
+    Participate(Address, u64, H256),
     Redeem(),
-    // ExtractSecret(H256, H256),
-    // AuditContract(H256, Bytes),
+    ExtractSecret(H256, H256),
+    AuditContract(H256, Bytes),
     //TODO refund
 }
 
@@ -72,39 +71,42 @@ struct BuiltContract {
 
 pub struct AtomicSwapper {
     acceptor: AcceptorRef,
-    wallet_manager: WalletManager,
     cpupool: CpuPool,
-    message_wrapper: FuturesMessageWrapper,    
+    message_wrapper: MessageWrapper, 
+    transaction_helper: TransactionHelperRef,
+    task_receiver: Receiver<Task>,
 }
 
 impl AtomicSwapper {
     pub fn new(
         acceptor: AcceptorRef,
-        wallet_manager: WalletManager,
+        transaction_helper: TransactionHelperRef,
         cpupool: CpuPool,    
-        message_wrapper: FuturesMessageWrapper,    
+        message_wrapper: MessageWrapper,
+        task_receiver: Receiver<Task>,  
     ) -> Self {
         AtomicSwapper {
             acceptor,
-            wallet_manager,
+            transaction_helper,
             cpupool,
             message_wrapper,
+            task_receiver
         }
     }
 
     pub fn run(&mut self) {
         loop {
-            // if let Ok(task) = self.task_receiver.recv() {
-            //     match task {
-            //         Task::Initiate(address, amount) => self.initiate(address, amount),
-            //         Task::Participate(address, amount, secret) => self.participate(address, amount, secret),
-            //         Task::Redeem() => self.redeem(),
-            //         Task::ExtractSecret(transaction, secret) => self.extract_secret(transaction, secret),
-            //         Task::AuditContract(contract, contract_transaction) => self.audit_contract(contract, contract_transaction),
-            //     }
-            // } else {
-            //     break;
-            // }
+            if let Ok(task) = self.task_receiver.recv() {
+                match task {
+                    Task::Initiate(address, amount) => self.initiate(address, amount),
+                    Task::Participate(address, amount, secret) => self.participate(address, amount, secret),
+                    Task::Redeem() => self.redeem(),
+                    Task::ExtractSecret(transaction, secret) => self.extract_secret(transaction, secret),
+                    Task::AuditContract(contract, contract_transaction) => self.audit_contract(contract, contract_transaction),
+                }
+            } else {
+                break;
+            }
         }
     }
 
@@ -196,8 +198,8 @@ impl AtomicSwapper {
 
         let transaction: Transaction = TransactionBuilder::with_output_and_pubkey(args.amount, contractP2SHPkScript.to_bytes()).into();
 
-        let funded_transaction = self.wallet_manager.fund_transaction(transaction)?;
-        let contractTx = self.wallet_manager.sign_transaction(funded_transaction)?;
+        let funded_transaction = self.transaction_helper.fund_transaction(transaction)?;
+        let contractTx = self.transaction_helper.sign_transaction(funded_transaction)?;
 
         let contractFee = 0u64;
 

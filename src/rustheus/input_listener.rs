@@ -7,8 +7,12 @@ use keys::{Address, Private};
 use wallet_manager::Task as WalletTask;
 use primitives::hash::H256;
 use crypto::DHash256;
+use atomic_swapper::Task as AtomicSwapperTask;
+
 //TODO please find a way to do this better. This tuple is needed to access senders from command closures
-type Senders = (Sender<ExecutorTask>, Sender<WalletTask>);
+type Senders = (Sender<ExecutorTask>,
+                Sender<WalletTask>,
+                Sender<AtomicSwapperTask>);
 
 pub struct InputListener {
     port: u16,
@@ -21,17 +25,19 @@ impl InputListener {
         port: u16,
         executor: Sender<ExecutorTask>,
         wallet_manager: Sender<WalletTask>,
+        atomic_swapper: Sender<AtomicSwapperTask>,
         terminator: Sender<bool>,
     ) -> Self {
-        let shell = Self::create_shell(executor, wallet_manager);
+        let shell = Self::create_shell(executor, wallet_manager, atomic_swapper);
         InputListener { port, shell, terminator }
     }
 
     fn create_shell(
         executor: Sender<ExecutorTask>,
         wallet_manager: Sender<WalletTask>,
+        atomic_swapper: Sender<AtomicSwapperTask>,
     ) -> Shell<Senders> {
-        let senders = (executor, wallet_manager);
+        let senders = (executor, wallet_manager, atomic_swapper);
 
         let mut shell = Shell::new(senders);
         shell.new_command(

@@ -2,6 +2,10 @@ use keys::generator::{Random, Generator};
 use keys::network::Network;
 use keys::{KeyPair, Private, Error, Address};
 use primitives::hash::H160;
+use std::sync::Arc;
+use parking_lot::RwLock;
+
+pub type WalletRef = Arc<RwLock<Wallet>>;
 
 pub struct Wallet
 {

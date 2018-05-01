@@ -1,0 +1,186 @@
+use chain::constants::SEQUENCE_LOCKTIME_DISABLE_FLAG;
+use chain::{OutPoint, Transaction};
+//use chain_builder::TransactionBuilder;
+use db::SharedStore;
+use keys::{Address, Private};
+use memory_pool::MemoryPoolRef;
+use message::types::Tx;
+use script::{Builder, Script, SighashBase, SignatureVersion, TransactionInputSigner};
+use service::Service;
+use std::sync::mpsc::Receiver;
+use sync::MessageWrapper;
+use wallet::{Wallet, WalletRef};
+use chain::{TransactionInput, TransactionOutput};
+use std::sync::Arc;
+
+pub type TransactionHelperRef = Arc<TransactionHelper>;
+
+#[derive(Debug)]
+pub enum FundError {
+    NoFunds,
+    NotEnoughFunds,
+}
+
+#[derive(Debug)]
+pub enum SignError {
+    NoSuchPrevout,
+    NoKeysToUnlockPrevout,
+    PrevoutWitnessParseError,
+    PrevoutWitnessVersionTooHigh,
+    FundError(FundError),
+}
+
+impl From<FundError> for SignError {
+    fn from(err: FundError) -> SignError {
+        SignError::FundError(err)
+    }
+}
+
+pub struct TransactionHelper {
+    mempool: MemoryPoolRef,
+    storage: SharedStore,
+    wallet: WalletRef,
+}
+
+impl TransactionHelper {
+    pub fn new(
+        mempool: MemoryPoolRef,
+        storage: SharedStore,
+        wallet: WalletRef,
+    ) -> Self {
+        TransactionHelper {
+            mempool,
+            storage,
+            wallet,
+        }
+    }
+
+    fn get_unspent_out_points(&self) -> Vec<OutPoint> {
+        self.wallet
+            .read()
+            .keys
+            .iter()
+            .flat_map(|keypair| {
+                self.storage
+                    .transaction_with_output_address(&keypair.address().hash)
+            })
+            .collect()
+    }
+
+    //TODO accept fee
+    pub fn fund_transaction(&self, transaction: Transaction) -> Result<Transaction, FundError> {
+        let unspent_out_points = self.get_unspent_out_points();
+        if unspent_out_points.is_empty() {
+            return Err(FundError::NoFunds);
+        }
+
+        let needed_amount = transaction
+            .outputs
+            .iter()
+            .fold(0, |acc, output| acc + output.value);
+
+        let mut inputs: Vec<TransactionInput> = vec![];
+
+        let mut inputs_sum = 0;
+        for out_point in unspent_out_points {
+            let output = self.storage.transaction_output(&out_point, 0).unwrap();
+            let input = TransactionInput {
+                previous_output: out_point,
+                script_sig: Default::default(),
+                sequence: SEQUENCE_LOCKTIME_DISABLE_FLAG, //TODO remove this for atomic swap probably
+                script_witness: vec![],
+            };
+            inputs.push(input);
+
+            inputs_sum += output.value;
+            if inputs_sum >= needed_amount {
+                break;
+            }
+        }
+
+        let mut outputs = transaction.outputs.clone();
+
+        //TODO create option to return leftovers to the same address
+        if inputs_sum > needed_amount {
+            let new_address = self.wallet.write().new_keypair();
+            let leftover = TransactionOutput {
+                value: inputs_sum - needed_amount,
+                script_pubkey: Builder::build_p2wpkh(&new_address.hash).to_bytes(),
+            };
+            outputs.push(leftover);
+        } else if inputs_sum < needed_amount {
+            return Err(FundError::NotEnoughFunds);
+        }
+
+        Ok(Transaction {
+            version: 0,
+            inputs,
+            outputs,
+            lock_time: 0,
+        })
+    }
+
+    pub fn sign_transaction(&self, transaction: Transaction) -> Result<Transaction, SignError> {
+        let signer: TransactionInputSigner = transaction.clone().into();
+        let signed_inputs: Result<Vec<_>, _> = transaction
+            .inputs
+            .into_iter()
+            .enumerate()
+            .map(|(i, input)| self.sign_input(input, i, &signer))
+            .collect();
+
+        match signed_inputs {
+            Err(err) => Err(err),
+            Ok(signed_inputs) => Ok(Transaction {
+                version: transaction.version,
+                inputs: signed_inputs,
+                outputs: transaction.outputs,
+                lock_time: transaction.lock_time,
+            }),
+        }
+    }
+
+    pub fn sign_input(
+        &self,
+        input: TransactionInput,
+        input_index: usize,
+        signer: &TransactionInputSigner,
+    ) -> Result<TransactionInput, SignError> {
+        let prevout = self.storage.transaction_output(&input.previous_output, 0);
+        if prevout.is_none() {
+            return Err(SignError::NoSuchPrevout);
+        }
+        let prevout = prevout.unwrap();
+        let prevout_script = Script::new(prevout.script_pubkey.clone());
+        let prevout_witness = prevout_script.parse_witness_program();
+        if prevout_witness == None {
+            return Err(SignError::PrevoutWitnessParseError);
+        }
+
+        let prevout_witness_version = prevout_witness.unwrap().0;
+        if prevout_witness_version != 0 {
+            return Err(SignError::PrevoutWitnessVersionTooHigh);
+        }
+
+        let prevout_witness_program = prevout_witness.unwrap().1;
+        let wallet = self.wallet.read();
+        let keys = wallet
+            .find_keypair_with_public_hash(prevout_witness_program.into());
+        if keys.is_none() {
+            return Err(SignError::NoKeysToUnlockPrevout);
+        }
+        let keys = keys.unwrap();
+        let script_pubkey = Builder::build_p2pkh(&prevout_witness_program.into());
+
+        let signed_input = signer.signed_input(
+            keys,
+            input_index,
+            prevout.value,
+            &script_pubkey,
+            SignatureVersion::WitnessV0,
+            SighashBase::All.into(),
+        );
+
+        Ok(signed_input)
+    }
+}

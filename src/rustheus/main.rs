@@ -47,6 +47,7 @@ mod wallet_manager;
 mod rpc;
 mod rpc_apis;
 mod atomic_swapper;
+mod transaction_helper;
 
 use executor::Executor;
 use executor::Task as ExecutorTask;
@@ -54,8 +55,11 @@ use futures_cpupool::CpuPool;
 use input_listener::InputListener;
 use p2p::NetworkNode;
 use service::Service;
-use sync::{Acceptor, MessageHandler, MessageWrapper, Responder, FuturesMessageWrapper};
+use sync::{Acceptor, MessageHandler, MessageWrapper, Responder};
+use wallet::Wallet;
 use wallet_manager::WalletManager;
+use atomic_swapper::AtomicSwapper;
+use transaction_helper::TransactionHelper;
 
 fn main() {
     pretty_env_logger::init();
@@ -103,6 +107,7 @@ fn main() {
     let (terminate_sender, terminate_receiver) = mpsc::channel();
     let (executor_sender, executor_receiver) = mpsc::channel();
     let (wallet_manager_sender, wallet_manager_receiver) = mpsc::channel();
+    let (atomic_swapper_sender, atomic_swapper_receiver) = mpsc::channel();
 
     let message_wrapper = MessageWrapper::new(config.network, to_network_sender.clone());
 
@@ -119,7 +124,7 @@ fn main() {
         mempool_ref.clone(),
         storage.clone(),
         config.network,
-        cpupool
+        cpupool.clone(),
     ));
 
     //setup network messages handler
@@ -140,12 +145,22 @@ fn main() {
         terminate_receiver,
     );
 
+    let wallet = Arc::new(RwLock::new(Wallet::new()));
+
+    let transaction_helper = Arc::new(TransactionHelper::new(
+        mempool_ref.clone(),
+        storage.clone(),
+        wallet.clone(),
+    ));
+
     //setup wallet task and miscellaneous task executor
     let mut wallet_manager = WalletManager::new(
         mempool_ref.clone(),
         storage.clone(),
         wallet_manager_receiver,
         message_wrapper.clone(),
+        wallet,
+        transaction_helper.clone(),
     );
     let mut executor = Executor::new(
         mempool_ref.clone(),
@@ -154,11 +169,20 @@ fn main() {
         message_wrapper.clone(),
     );
 
+    let mut atomic_swapper = AtomicSwapper::new(
+        acceptor.clone(),
+        transaction_helper,
+        cpupool,
+        message_wrapper,
+        atomic_swapper_receiver,
+    );
+
     //setup telnet listener
     let input_listener = InputListener::new(
         config.telnet_port,
         executor_sender.clone(),
         wallet_manager_sender,
+        atomic_swapper_sender,
         terminate_sender,
     );
 
@@ -173,9 +197,9 @@ fn main() {
     let input_listener_thread = thread::spawn(move || input_listener.run());
     let responder_thread = thread::spawn(move || responder.run());
     let executor_thread = thread::spawn(move || executor.run());
-    //let acceptor_thread = thread::spawn(move || acceptor.run());
     let wallet_manager_thread = thread::spawn(move || wallet_manager.run());
     let message_handler_thread = thread::spawn(move || message_handler.run());
+    let atomic_swapper_thread = thread::spawn(move || atomic_swapper.run());
 
     //prepare to handle Ctrl-C
     ctrlc::set_handler(move || {
@@ -202,6 +226,7 @@ fn main() {
     wallet_manager_thread.join().unwrap();
     responder_thread.join().unwrap();
     executor_thread.join().unwrap();
+    atomic_swapper_thread.join().unwrap();
 
     //TODO ending app properly is shallow. Every module and thread has to end for database to save properly
     //for this to happen every used Sender should be deleted so every thread may break its loop when no senders are available
