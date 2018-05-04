@@ -27,6 +27,7 @@ impl TransactionUtxoProvider for UtxoAndOutputProvider {
             .transaction_with_output_address(&address)
             .into_iter()
             .chain(self.mempool.read().transaction_with_output_address(&address).into_iter())
+            .filter(|outpoint| !self.mempool.read().is_spent(outpoint))			
 			.collect()
 	}
 }

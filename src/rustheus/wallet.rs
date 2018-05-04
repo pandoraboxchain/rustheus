@@ -51,4 +51,13 @@ impl Wallet
     pub fn find_keypair_with_public_hash(&self, pubkey_hash: H160) -> Option<&KeyPair> {
         self.keys.iter().find(|&keypair| keypair.public().address_hash() == pubkey_hash)
     }
+    /// Checks if wallet has at least one key and shows error message if not
+    pub fn is_ready(&self) -> bool {
+        if self.keys.is_empty() {
+            error!("No wallet was created or loaded. Use `walletcreate` or `walletload` to create one.");
+            false
+        } else {
+            true
+        }
+    }
 }

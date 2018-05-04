@@ -1,17 +1,12 @@
 use chain::constants::SEQUENCE_LOCKTIME_DISABLE_FLAG;
 use chain::{OutPoint, Transaction};
-//use chain_builder::TransactionBuilder;
-use db::SharedStore;
-use keys::{Address, Private};
-use memory_pool::MemoryPoolRef;
-use message::types::Tx;
+use db::{TransactionUtxoProvider, TransactionOutputProvider};
+use keys::Private;
 use script::{Builder, Script, SighashBase, SignatureVersion, TransactionInputSigner};
-use service::Service;
-use std::sync::mpsc::Receiver;
-use sync::MessageWrapper;
-use wallet::{Wallet, WalletRef};
+use wallet::WalletRef;
 use chain::{TransactionInput, TransactionOutput};
 use std::sync::Arc;
+use memory_pool::UtxoAndOutputProvider;
 
 pub type TransactionHelperRef = Arc<TransactionHelper>;
 
@@ -37,33 +32,30 @@ impl From<FundError> for SignError {
 }
 
 pub struct TransactionHelper {
-    mempool: MemoryPoolRef,
-    storage: SharedStore,
+    utxo_provider: UtxoAndOutputProvider,
     wallet: WalletRef,
 }
 
 impl TransactionHelper {
     pub fn new(
-        mempool: MemoryPoolRef,
-        storage: SharedStore,
+        utxo_provider: UtxoAndOutputProvider,
         wallet: WalletRef,
     ) -> Self {
         TransactionHelper {
-            mempool,
-            storage,
+            utxo_provider,
             wallet,
         }
     }
 
+    //TODO seek for spent outputs in mempool
     fn get_unspent_out_points(&self) -> Vec<OutPoint> {
         self.wallet
             .read()
             .keys
             .iter()
-            .flat_map(|keypair| {
-                self.storage
-                    .transaction_with_output_address(&keypair.address().hash)
-            })
+            .flat_map(|keypair| 
+                self.utxo_provider
+                    .transaction_with_output_address(&keypair.address().hash))
             .collect()
     }
 
@@ -83,7 +75,7 @@ impl TransactionHelper {
 
         let mut inputs_sum = 0;
         for out_point in unspent_out_points {
-            let output = self.storage.transaction_output(&out_point, 0).unwrap();
+            let output = self.utxo_provider.transaction_output(&out_point, 0).unwrap();
             let input = TransactionInput {
                 previous_output: out_point,
                 script_sig: Default::default(),
@@ -146,7 +138,7 @@ impl TransactionHelper {
         input_index: usize,
         signer: &TransactionInputSigner,
     ) -> Result<TransactionInput, SignError> {
-        let prevout = self.storage.transaction_output(&input.previous_output, 0);
+        let prevout = self.utxo_provider.transaction_output(&input.previous_output, 0);
         if prevout.is_none() {
             return Err(SignError::NoSuchPrevout);
         }

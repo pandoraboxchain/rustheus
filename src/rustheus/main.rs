@@ -7,7 +7,6 @@ extern crate ctrlc;
 extern crate db;
 extern crate keys;
 
-extern crate futures_cpupool;
 extern crate memory_pool;
 extern crate message;
 extern crate p2p;
@@ -22,6 +21,7 @@ extern crate sync;
 extern crate verification;
 extern crate rpc as ethcore_rpc;
 extern crate futures;
+extern crate futures_cpupool;
 extern crate chain_builder;
 
 #[macro_use]
@@ -150,8 +150,7 @@ fn main() {
 
     let utxo_provider = UtxoAndOutputProvider::new(storage.clone(), mempool_ref.clone());
     let transaction_helper = Arc::new(TransactionHelper::new(
-        mempool_ref.clone(),
-        storage.clone(),
+        utxo_provider,
         wallet.clone(),
     ));
 

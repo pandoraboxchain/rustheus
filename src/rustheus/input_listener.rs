@@ -155,6 +155,27 @@ impl InputListener {
                 }
             },
         );
+        shell.new_command(
+            "initiate",
+            "Atomic swap initiate <participant address> <amount>",
+            2,
+            |_, senders, args| {
+                let ref atomic_swapper = senders.2;
+                match Address::from_str(args[0]) {
+                    Ok(address) => match args[1].parse::<u64>() {
+                        Ok(amount) => {
+                            let task = AtomicSwapperTask::Initiate(address, amount);
+                            atomic_swapper.send(task)?;
+                        }
+                        Err(err) => error!("Can't parse amount: {}", err),
+                    },
+                    Err(err) => {
+                        error!("Can't parse address: {}", err);
+                    }
+                }
+                Ok(())
+            },
+        );
 
         shell
     }

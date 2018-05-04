@@ -61,19 +61,12 @@ impl WalletManager {
     }
 
     fn calculate_balance(&self) {
-        if self.wallet.read().keys.is_empty() {
-            error!("No wallet was created or loaded. Use `walletcreate` or `walletload` to create one.");
-            return;
-        }
+        if !self.wallet.read().is_ready() { return; }
         let wallet = &self.wallet;
 
         let user_address_hash = wallet.read().keys[0].address().hash;
         let out_points = self.storage
             .transaction_with_output_address(&user_address_hash);
-        println!("out_points len is {}", out_points.len());
-        for out_point in out_points.iter() {
-            println!("out_point is {:?}", out_point);
-        }
         let balance = out_points
             .iter()
             .map(|out_point| self.storage.transaction_output(out_point, 0).unwrap())
@@ -84,10 +77,7 @@ impl WalletManager {
 
     //TODO needs refactoring so it not just returns in case of error
     fn send_cash(&self, recipient: Address, amount: u64) {
-        if self.wallet.read().keys.is_empty() {
-            error!("No wallet was created or loaded. Use `walletcreate` or `walletfromkey` to create one.");
-            return;
-        }
+        if !self.wallet.read().is_ready() { return; }
 
         let transaction = Transaction {
             version: 0,
@@ -102,7 +92,13 @@ impl WalletManager {
         };
 
         //TODO pattern match returned results
-        let funded_transaction = self.transaction_helper.fund_transaction(transaction).unwrap();
+        let funded_transaction = match self.transaction_helper.fund_transaction(transaction) {
+            Ok(transaction) => transaction,
+            Err(err) => {
+                error!("Error funding transaction: {:?}", err);
+                return;
+            }
+        };
         let signed_transaction = self.transaction_helper.sign_transaction(funded_transaction).unwrap();
 
         let hash = signed_transaction.hash();
@@ -115,6 +111,8 @@ impl WalletManager {
             transaction: signed_transaction.clone(),
         };
         self.wrapper.broadcast(&tx);
+
+        debug!("transaction to insert: {:?}", signed_transaction);
 
         let mut mempool = self.mempool.write();
         mempool.insert_verified(signed_transaction.into());

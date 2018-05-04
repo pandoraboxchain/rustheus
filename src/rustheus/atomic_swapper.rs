@@ -137,12 +137,13 @@ impl AtomicSwapper {
             secret_hash: secret_hash,
         });
 
-        if contract.is_err() {
-            error!("failed to build contract");
-            return;
-        }
-
-        let contract = contract.unwrap();
+        let contract = match contract {
+            Ok(built_contract) => built_contract,
+            Err(err) => {
+                error!("Failed to build contract. Reason: {:?}", err);
+                return;
+            }
+        };
 
         let refundTxHash = contract.refundTx.hash();
         //TODO fee calculation
