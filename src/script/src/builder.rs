@@ -3,6 +3,7 @@
 use bytes::Bytes;
 use {Opcode, Script, Num};
 use keys::AddressHash;
+use ser::hash::H256;
 
 /// Script builder
 #[derive(Default)]
@@ -36,6 +37,14 @@ impl Builder {
 		Builder::default()
 			.push_opcode(Opcode::OP_0)
 			.push_bytes(&**address)
+			.into_script()
+	}
+
+		/// Builds p2wsh script hash
+	pub fn build_p2wsh(script_hash: &H256) -> Script {
+		Builder::default()
+			.push_opcode(Opcode::OP_0)
+			.push_bytes(&**script_hash)
 			.into_script()
 	}
 

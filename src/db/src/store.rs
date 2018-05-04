@@ -74,5 +74,6 @@ impl<T> AsSubstore for T where T: BlockChain + IndexedBlockProvider +
 		&*self
 	}
 }
+pub trait UtxoAndOutputProvider: TransactionOutputProvider + TransactionOutputProvider {}
 
 pub type SharedStore = Arc<CanonStore + Send + Sync>;

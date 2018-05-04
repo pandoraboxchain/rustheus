@@ -483,7 +483,7 @@ impl<T> TransactionMetaProvider for BlockChainDatabase<T> where T: KeyValueDatab
 	}
 }
 
-impl<T> TransactionUtxoProvider for BlockChainDatabase<T> where T: KeyValueDatabase {
+impl<T> BlockChainDatabase<T> where T: KeyValueDatabase {
 	fn transaction_utxo_for_block(&self, block_height: u32, address: &H160) -> Vec<OutPoint> {
 		let block = BlockRef::Number(block_height);
 		let transaction_hashes = self.block_transaction_hashes(block);
@@ -518,7 +518,9 @@ impl<T> TransactionUtxoProvider for BlockChainDatabase<T> where T: KeyValueDatab
 		}
 		outputs
 	}
-	
+}
+
+impl<T> TransactionUtxoProvider for BlockChainDatabase<T> where T: KeyValueDatabase {	
 	fn transaction_with_output_address(&self, address: &H160) -> Vec<OutPoint> {
 		let best_block = self.best_block();
 		let mut out_points: Vec<OutPoint> = vec![];

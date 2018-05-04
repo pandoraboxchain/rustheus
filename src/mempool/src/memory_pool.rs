@@ -5,9 +5,9 @@
 //! transactions.
 //! It also guarantees that ancestor-descendant relation won't break during ordered removal (ancestors always removed
 //! before descendants). Removal using `remove_by_hash` can break this rule.
-use db::{TransactionProvider, TransactionOutputProvider};
+use db::{TransactionProvider, TransactionOutputProvider, TransactionUtxoProvider};
 use primitives::bytes::Bytes;
-use primitives::hash::H256;
+use primitives::hash::{H160, H256};
 use chain::{IndexedTransaction, Transaction, OutPoint, TransactionOutput};
 use std::cmp::Ordering;
 use std::collections::HashMap;
@@ -19,6 +19,7 @@ use ser::{Serializable, serialize};
 use heapsize::HeapSizeOf;
 use std::sync::Arc;
 use parking_lot::RwLock;
+use script::Script;
 
 pub type MemoryPoolRef = Arc<RwLock<MemoryPool>>;
 
@@ -825,6 +826,32 @@ impl TransactionOutputProvider for MemoryPool {
 
 	fn is_spent(&self, outpoint: &OutPoint) -> bool {
 		self.is_spent(outpoint)
+	}
+}
+
+impl TransactionUtxoProvider for MemoryPool {
+	fn transaction_with_output_address(&self, address: &H160) -> Vec<OutPoint> {
+		let transaction_hashes = self.get_transactions_ids();
+		let address_bytes = address.clone().take();
+		let mut outpoints: Vec<OutPoint> = vec![];
+		for hash in transaction_hashes.iter()
+		{
+			let transaction = self.get(&hash).unwrap();
+			for (index, output) in transaction.outputs.iter().enumerate()
+			{
+				//TODO maybe using script here is redundant and its enough to compare plain bytes?
+				let script: Script = output.script_pubkey.clone().into();
+				let script_addresses = script.extract_destinations().unwrap_or(vec![]);
+				if script_addresses.iter().any(|address| address.hash[..] == address_bytes)
+				{
+					let outpoint = OutPoint { hash: hash.clone(), index: index as u32 };
+					if !self.is_spent(&outpoint) {
+						outpoints.push(outpoint);
+					}
+				}
+			}
+		}
+		outpoints
 	}
 }
 

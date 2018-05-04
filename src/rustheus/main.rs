@@ -60,6 +60,7 @@ use wallet::Wallet;
 use wallet_manager::WalletManager;
 use atomic_swapper::AtomicSwapper;
 use transaction_helper::TransactionHelper;
+use memory_pool::UtxoAndOutputProvider;
 
 fn main() {
     pretty_env_logger::init();
@@ -147,6 +148,7 @@ fn main() {
 
     let wallet = Arc::new(RwLock::new(Wallet::new()));
 
+    let utxo_provider = UtxoAndOutputProvider::new(storage.clone(), mempool_ref.clone());
     let transaction_helper = Arc::new(TransactionHelper::new(
         mempool_ref.clone(),
         storage.clone(),

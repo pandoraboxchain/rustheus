@@ -25,6 +25,7 @@ impl Wallet
         let keypair = generator.generate().expect("Could not generate keypair");
         let address = keypair.address();
         info!("Generated keypair {}", keypair);
+        info!("Public key hash is {}", address.hash);
         info!("Address is {}", address);
         self.keys.push(keypair);
         address

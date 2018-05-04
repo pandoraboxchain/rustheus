@@ -35,5 +35,4 @@ pub trait TransactionMetaProvider: Send + Sync {
 
 pub trait TransactionUtxoProvider: Send + Sync {
 	fn transaction_with_output_address(&self, address: &H160) -> Vec<OutPoint>;
-	fn transaction_utxo_for_block(&self, block_height: u32, address: &H160) -> Vec<OutPoint>;
 }
