@@ -6,7 +6,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 [dependencies]
 rocksdb = { git = "https://github.com/ethcore/rust-rocksdb" }
 elastic-array = "0.6"
-parking_lot = "0.4"
+parking_lot = { version = "~0.5.5", features = ["deadlock_detection"] }
 log = "0.3"
 bit-vec = "0.4"
 lru-cache = "0.1"

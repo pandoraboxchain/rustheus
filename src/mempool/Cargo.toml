@@ -6,13 +6,14 @@ authors = ["Ethcore <admin@ethcore.io>"]
 [dependencies]
 byteorder = "1.0"
 heapsize = "0.4"
-parking_lot = "0.5.4"
+parking_lot = { version = "~0.5.5", features = ["deadlock_detection"] }
 bitcrypto = { path = "../crypto" }
 chain = { path = "../chain" }
 db = { path = "../db" }
 params = { path = "../params" }
 primitives = { path = "../primitives" }
 serialization = { path = "../serialization" }
+serialization_derive = { path = "../serialization_derive" }
 verification = { path = "../verification" }
 keys = { path = "../keys" }
 script = { path = "../script" }
