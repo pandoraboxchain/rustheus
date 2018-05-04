@@ -8,7 +8,7 @@
             "program": "${workspaceRoot}/target/debug/rustheus",
             "args": ["-f"],  //launch as bootstrap node
             "cwd": "${workspaceRoot}/target/debug/",
-            "preLaunchTask": "build",
+            "preLaunchTask": "cargo build",
             "terminal": "integrated",
             "sourceLanguages": ["rust"],
             "env": {
@@ -23,7 +23,7 @@
             "program": "${workspaceRoot}/target/debug/rustheus",
             "args": ["-n","3"],     //launch as third client
             "cwd": "${workspaceRoot}/target/debug/",
-            "preLaunchTask": "build",
+            "preLaunchTask": "cargo build",
             "terminal": "integrated",
             "sourceLanguages": ["rust"],
             "env": {
