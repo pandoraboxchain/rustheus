@@ -15,6 +15,6 @@ serialization = { path = "../serialization" }
 chain = { path = "../chain" }
 script = { path = "../script" } #TODO maybe get rid of script dependency for db
 
-#[dev-dependencies]
-#tempdir = "0.3"
-#test-data = { path = "../test-data" }
+[dev-dependencies]
+tempdir = "0.3"
+chain_builder = { path = "../chain_builder" }
