@@ -20,6 +20,7 @@ pub struct VerificationFlags {
 	/// (softfork safe, BIP62 rule 5).
 	pub verify_low_s: bool,
 
+	//TODO fix this multisig bug https://bitcoin.stackexchange.com/questions/40669/checkmultisig-a-worked-out-example
 	/// verify dummy stack item consumed by CHECKMULTISIG is of zero-length (softfork safe, BIP62 rule 7).
 	pub verify_nulldummy: bool,
 

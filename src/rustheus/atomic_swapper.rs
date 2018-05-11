@@ -24,7 +24,7 @@ use futures::prelude::*;
 use futures_cpupool::CpuPool;
 use std::time::Duration;
 
-const secretSize: usize = 32;
+const SECRET_SIZE: usize = 32;
 
 #[derive(Debug)]
 pub enum ContractError
@@ -80,7 +80,7 @@ struct ContractArgs {
 
 struct BuiltContract {
     contract:       Bytes,
-    contractP2SH:   H256,
+    contractP2WSH:  H256,
     contractTxHash: H256,
     contractTx:     Transaction,
     contractFee:    u64,
@@ -90,8 +90,8 @@ struct BuiltContract {
 
 // AtomicSwapDataPushes houses the data pushes found in atomic swap contracts.
 struct AtomicSwapDataPushes {
-	RecipientHash160: H160,
-	RefundHash160:    H160,
+	RecipientHash160: AddressHash,
+	RefundHash160:    AddressHash,
 	SecretHash:       H256,
 	SecretSize:       i64,  //TODO why is this signed?
 	LockTime:         i64,  //TODO why is this signed?
@@ -141,7 +141,7 @@ impl AtomicSwapper {
     fn initiate(&mut self, address: Address, amount: u64) {
         //TODO check if correct network
 		//let mut secret = [u8; 32];
-        let mut secret: [u8; secretSize] = [0u8; secretSize];
+        let mut secret: [u8; SECRET_SIZE] = [0u8; SECRET_SIZE];
         if let Err(_) = Random::generate_bytes(&mut secret[..]) {
             error!("Could not generate bytes for secret");
             return;
@@ -180,11 +180,11 @@ impl AtomicSwapper {
 
         //println!("Contract fee: %v (%0.8f BTC/kB)\n", b.contractFee, contractFeePerKb);
         //println!("Refund fee:   %v (%0.8f BTC/kB)\n\n", b.refundFee, refundFeePerKb);
-        println!("Contract ({}):", contract.contractP2SH);
+        println!("Contract ({}):", contract.contractP2WSH);
         println!("{:?}\n", contract.contract);
         
         println!("Contract transaction ({}):", contract.contractTxHash);
-        println!("{:?}\n", contract.contractTx);
+        println!("{:?}\n", serialize(&contract.contractTx));
 
         println!("Refund transaction ({}):\n", refundTxHash);
         println!("{:?}\n", contract.refundTx);
@@ -206,7 +206,7 @@ impl AtomicSwapper {
         unimplemented!();
     }
     fn audit_contract(&self, contract: Bytes, raw_contract_transaction: Bytes) {
-        let contractHash160 = dhash160(&contract);
+        let contractHash256 = dhash256(&contract);
 
 		let raw_transaction_data: Vec<u8> = raw_contract_transaction.into();
 		let transaction: Transaction = match deserialize(Reader::new(&raw_transaction_data)) {
@@ -219,15 +219,17 @@ impl AtomicSwapper {
 
         let output = transaction.outputs.iter()
             .find(|output| {
-                let script: Script = output.script_pubkey.clone().into();
-                let destinations = script.extract_destinations().unwrap_or(vec![]);
-                destinations.iter().any(|address| address.hash == contractHash160)
+                if output.script_pubkey.len() == 34 {       //TODO use script address instead of script hash here
+                    let script_unlocking_hash = &output.script_pubkey[2..];
+                    return script_unlocking_hash == &contractHash256[..];
+                }
+                false
             });
 
         let output = match output {
             Some(output) => output,
             None => {
-                error!("transaction does not contain the contract output");
+                error!("Transaction does not contain the contract output");
                 return;
             }
         };
@@ -235,23 +237,24 @@ impl AtomicSwapper {
         let pushes =  match extractAtomicSwapDataPushes(0, contract) {
             Ok(pushes) => pushes,
             Err(err) => {
-                error!("contract is not an atomic swap script recognized by this tool. Reason {:?}", err);
+                error!("Cannot parse contract. Reason {:?}", err);
                 return;
             }
         };
 
-        if pushes.SecretSize as usize != secretSize {
-            error!("contract specifies strange secret size {}", pushes.SecretSize);
+        if pushes.SecretSize as usize != SECRET_SIZE {
+            error!("Contract specifies strange secret size {}", pushes.SecretSize);
             return;
         }
 
         let network = Network::Mainnet; 
 
-        let contractAddr = Address {
-            hash: contractHash160,
-            network: network,
-            kind: AddressType::P2SH,
-        };
+        //TODO bech32
+//        let contractAddr = Address {
+//            hash: contractHash160,
+//            network: network,
+//            kind: AddressType::P2SH,
+//        };
         let recipientAddr = Address {
             hash: pushes.RecipientHash160,
             network: network,
@@ -263,7 +266,7 @@ impl AtomicSwapper {
             kind: AddressType::P2PKH,
         };
 
-        println!("Contract address:        {}", contractAddr);
+        println!("Contract address:        {}", contractHash256);
         println!("Contract value:          {}", output.value);
         println!("Recipient address:       {}", recipientAddr);
         println!("Author's refund address: {}\n", refundAddr);
@@ -299,8 +302,8 @@ impl AtomicSwapper {
 
         let contract = contract.to_bytes();
 
-        let contractP2SH = dhash256(&contract[..]);
-        let contractP2SHPkScript = ScriptBuilder::build_p2wsh(&contractP2SH);
+        let contractP2WSH = dhash256(&contract[..]);
+        let contractP2SHPkScript = ScriptBuilder::build_p2wsh(&contractP2WSH);
 
         //TODO fee calculation
         let (feePerKb, minFeePerKb) = (0,0);
@@ -321,7 +324,7 @@ impl AtomicSwapper {
         let contractTxHash = contractTx.hash();
         Ok(BuiltContract {
             contract,
-            contractP2SH,
+            contractP2WSH,
             contractTxHash,
             contractTx,
             contractFee,
@@ -350,7 +353,7 @@ fn atomicSwapContract(pkhMe: H160, pkhThem: H160, locktime: u32, secretHash: H25
 		// party can audit.  This is used to prevent fraud attacks between two
 		// currencies that have different maximum data sizes.
 		.push_opcode(Opcode::OP_SIZE)
-		.push_num(secretSize.into())
+		.push_num(SECRET_SIZE.into())
 		.push_opcode(Opcode::OP_EQUALVERIFY)
 
 		// Require initiator's secret to be known to redeem the output.
@@ -393,44 +396,48 @@ fn atomicSwapContract(pkhMe: H160, pkhThem: H160, locktime: u32, secretHash: H25
 fn extractAtomicSwapDataPushes(_version: u16, pkScript: Bytes) -> Result<AtomicSwapDataPushes,PushExtractionError> {
 	let pops = pkScript;
 
-	if pops.len() != 20 {
+    let script: Script = pops.clone().into();
+	if script.opcodes().count() != 20 {
 		return Err(PushExtractionError::NotAtomicSwapScript);
 	}
 
-    let pops2 = Opcode::from_u8(pops[2]).ok_or(PushExtractionError::MalformedAtomicSwapScript)?;
-    let pops11 = Opcode::from_u8(pops[11]).ok_or(PushExtractionError::MalformedAtomicSwapScript)?;
+    let mut opcodes = script.opcodes();
 
-	let isAtomicSwap = pops[0] == Opcode::OP_IF as u8 &&
-		pops[1] == Opcode::OP_SIZE as u8 &&
-		pops2.is_within_op_n() && //TODO what is canonical push?
-		pops[3] == Opcode::OP_EQUALVERIFY as u8 &&
-		pops[4] == Opcode::OP_SHA256 as u8 &&
-		pops[5] == Opcode::OP_PUSHBYTES_32 as u8 &&
-		pops[6] == Opcode::OP_EQUALVERIFY as u8 &&
-		pops[7] == Opcode::OP_DUP as u8 &&
-		pops[8] == Opcode::OP_HASH160 as u8 &&
-		pops[9] == Opcode::OP_PUSHBYTES_20 as u8 &&
-		pops[10] == Opcode::OP_ELSE as u8 &&
-		pops11.is_within_op_n() && //TODO what is canonical push?
-		pops[12] == Opcode::OP_CHECKLOCKTIMEVERIFY as u8 &&
-		pops[13] == Opcode::OP_DROP as u8 &&
-		pops[14] == Opcode::OP_DUP as u8 &&
-		pops[15] == Opcode::OP_HASH160 as u8 &&
-		pops[16] == Opcode::OP_PUSHBYTES_20 as u8 &&
-		pops[17] == Opcode::OP_ENDIF as u8 &&
-		pops[18] == Opcode::OP_EQUALVERIFY as u8 &&
-		pops[19] == Opcode::OP_CHECKSIG as u8;
+    //TODO think of a better way of checking script correctness
+	let isAtomicSwap = opcodes.next().unwrap()? == Opcode::OP_IF &&
+        opcodes.next().unwrap()? == Opcode::OP_SIZE &&
+        opcodes.next().unwrap()?.is_simple_push() && //TODO check for minimal push here maybe?
+		opcodes.next().unwrap()? == Opcode::OP_EQUALVERIFY &&
+		opcodes.next().unwrap()? == Opcode::OP_SHA256 &&
+		opcodes.next().unwrap()? == Opcode::OP_PUSHBYTES_32 &&
+		opcodes.next().unwrap()? == Opcode::OP_EQUALVERIFY &&
+		opcodes.next().unwrap()? == Opcode::OP_DUP &&
+		opcodes.next().unwrap()? == Opcode::OP_HASH160 &&
+		opcodes.next().unwrap()? == Opcode::OP_PUSHBYTES_20 &&
+		opcodes.next().unwrap()? == Opcode::OP_ELSE &&
+        opcodes.next().unwrap()?.is_simple_push() && //TODO check for minimal push here maybe?
+		opcodes.next().unwrap()? == Opcode::OP_CHECKLOCKTIMEVERIFY &&
+		opcodes.next().unwrap()? == Opcode::OP_DROP &&
+		opcodes.next().unwrap()? == Opcode::OP_DUP &&
+		opcodes.next().unwrap()? == Opcode::OP_HASH160 &&
+		opcodes.next().unwrap()? == Opcode::OP_PUSHBYTES_20 &&
+		opcodes.next().unwrap()? == Opcode::OP_ENDIF &&
+		opcodes.next().unwrap()? == Opcode::OP_EQUALVERIFY &&
+		opcodes.next().unwrap()? == Opcode::OP_CHECKSIG;
 	if !isAtomicSwap {
 		return Err(PushExtractionError::NotAtomicSwapScript);
 	}
 
     //let pushes: AtomicSwapDataPushes = 
-	let SecretHash = pops[5].into();
-	let RecipientHash160 = pops[9].into();
-	let RefundHash160 = pops[16].into();
+	let SecretHash = script.iter().nth(5).unwrap()?.data.ok_or(PushExtractionError::MalformedAtomicSwapScript)?.into();
+	let RecipientHash160 = script.iter().nth(9).unwrap()?.data.ok_or(PushExtractionError::MalformedAtomicSwapScript)?.into();
+	let RefundHash160 = script.iter().nth(16).unwrap()?.data.ok_or(PushExtractionError::MalformedAtomicSwapScript)?.into();;
 
-    let secret_size = Num::from_slice(&pops[2..2], true, 5)?;
-    let locktime = Num::from_slice(&pops[11..11], true, 5)?;
+    let secret_size_slice = script.iter().nth(2).unwrap()?.data.ok_or(PushExtractionError::MalformedAtomicSwapScript)?;
+    let locktime_slice = script.iter().nth(11).unwrap()?.data.ok_or(PushExtractionError::MalformedAtomicSwapScript)?;
+
+    let secret_size = Num::from_slice(secret_size_slice, true, 5)?;
+    let locktime = Num::from_slice(locktime_slice, true, 5)?;
 
 	Ok(AtomicSwapDataPushes {
         SecretHash,
