@@ -280,8 +280,7 @@ impl AtomicSwapper {
                 .duration_since(UNIX_EPOCH)
                 .expect("System time went backwards");
             println!("Locktime: {}", pushes.LockTime);
-            let reachedAt = locktime - time_since_the_epoch;
-            let reachedAt = reachedAt.as_secs();
+            let reachedAt: i128 = locktime.as_secs() as i128 - time_since_the_epoch.as_secs() as i128;
             if reachedAt > 0 {
                 println!("Locktime reached in {} seconds", reachedAt);
             } else {
