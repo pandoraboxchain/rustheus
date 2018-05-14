@@ -1,12 +1,13 @@
 use chain::constants::SEQUENCE_LOCKTIME_DISABLE_FLAG;
 use chain::{OutPoint, Transaction};
 use db::{TransactionUtxoProvider, TransactionOutputProvider};
-use keys::Private;
+use keys::{Private, KeyPair};
 use script::{Builder, Script, SighashBase, SignatureVersion, TransactionInputSigner};
 use wallet::WalletRef;
 use chain::{TransactionInput, TransactionOutput};
 use std::sync::Arc;
 use memory_pool::UtxoAndOutputProvider;
+use primitives::bytes::Bytes;
 
 pub type TransactionHelperRef = Arc<TransactionHelper>;
 
@@ -112,6 +113,20 @@ impl TransactionHelper {
         })
     }
 
+    // createSig creates and returns the serialized raw signature and compressed
+    // pubkey for a transaction input signature
+    pub fn create_signature_for_input(&self, transaction: &Transaction, input_index: usize,
+		input_amount: u64, script: Script,	keys: &KeyPair) -> (Bytes, Bytes) {
+        let signer: TransactionInputSigner = transaction.clone().into();        
+        
+        signer.compute_signature_for_input(keys,
+            input_index,
+            input_amount,
+            &script,
+            SignatureVersion::WitnessV0,
+            SighashBase::All.into())
+    }
+
     pub fn sign_transaction(&self, transaction: Transaction) -> Result<Transaction, SignError> {
         let signer: TransactionInputSigner = transaction.clone().into();
         let signed_inputs: Result<Vec<_>, _> = transaction
@@ -157,7 +172,7 @@ impl TransactionHelper {
         let prevout_witness_program = prevout_witness.unwrap().1;
         let wallet = self.wallet.read();
         let keys = wallet
-            .find_keypair_with_public_hash(prevout_witness_program.into());
+            .find_keypair_with_public_hash(&prevout_witness_program.into());
         if keys.is_none() {
             return Err(SignError::NoKeysToUnlockPrevout);
         }

@@ -150,39 +150,29 @@ impl TransactionInputSigner {
 	) -> TransactionInput {
 		match sigversion {
 			SignatureVersion::WitnessV0 => self.signed_input_witness(keypair, input_index, input_amount, script_pubkey, sigversion, sighash),
-			_ => self.signed_input_base(keypair, input_index, input_amount, script_pubkey, sigversion, sighash),
+			_ => panic!("Non witness signature should not be used"),
 		}
 	}
 
-	/// input_index - index of input to sign
-	/// script_pubkey - script_pubkey of input's previous_output pubkey
-	fn signed_input_base(
-		&self,
+	//TODO possibly return Signature and Public instead of plain Bytes
+	pub fn compute_signature_for_input(&self,
 		keypair: &KeyPair,
 		input_index: usize,
 		input_amount: u64,
 		script_pubkey: &Script,
 		sigversion: SignatureVersion,
 		sighash: u32,
-	) -> TransactionInput {
+	) -> (Bytes, Bytes) {
 		let hash = self.signature_hash(input_index, input_amount, script_pubkey, sigversion, sighash);
 
 		let mut signature: Vec<u8> = keypair.private().sign(&hash).unwrap().into();
 		signature.push(sighash as u8);
-		let script_sig = Builder::default()
-			.push_data(&signature)
-			.push_data(keypair.public())
-			.into_script();
+		let pubkey = Bytes::from(&keypair.public()[..]);
 
-		let unsigned_input = &self.inputs[input_index];
-		TransactionInput {
-			previous_output: unsigned_input.previous_output.clone(),
-			sequence: unsigned_input.sequence,
-			script_sig: script_sig.to_bytes(),
-			script_witness: vec![],
-		}
+		(signature.into(), pubkey)
 	}
 
+	//TODO switch to using compute_signature_for_input
 	fn signed_input_witness(
 		&self,
 		keypair: &KeyPair,

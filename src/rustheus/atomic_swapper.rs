@@ -10,7 +10,7 @@ use chain::bytes::Bytes;
 use chain::{Transaction};
 use crypto::{dhash160, dhash256};
 use std::time::{SystemTime, UNIX_EPOCH};
-use wallet::Wallet;
+use wallet::WalletRef;
 use message::types::Tx;
 use transaction_helper::{TransactionHelperRef, SignError, FundError};
 use std::sync::mpsc::Receiver;
@@ -65,7 +65,7 @@ pub enum Task {
     //atomic swaps
     Initiate(Address, u64),
     Participate(Address, u64, H256),
-    Redeem(),
+    Redeem(Bytes, Bytes, Bytes),
     ExtractSecret(H256, H256),
     AuditContract(Bytes, Bytes),
     //TODO refund
@@ -103,6 +103,7 @@ pub struct AtomicSwapper {
     message_wrapper: MessageWrapper, 
     transaction_helper: TransactionHelperRef,
     task_receiver: Receiver<Task>,
+    wallet: WalletRef,
 }
 
 impl AtomicSwapper {
@@ -111,14 +112,16 @@ impl AtomicSwapper {
         transaction_helper: TransactionHelperRef,
         cpupool: CpuPool,    
         message_wrapper: MessageWrapper,
-        task_receiver: Receiver<Task>,  
+        task_receiver: Receiver<Task>,
+        wallet: WalletRef, 
     ) -> Self {
         AtomicSwapper {
             acceptor,
             transaction_helper,
             cpupool,
             message_wrapper,
-            task_receiver
+            task_receiver,
+            wallet,
         }
     }
 
@@ -128,7 +131,7 @@ impl AtomicSwapper {
                 match task {
                     Task::Initiate(address, amount) => self.initiate(address, amount),
                     Task::Participate(address, amount, secret) => self.participate(address, amount, secret),
-                    Task::Redeem() => self.redeem(),
+                    Task::Redeem(contract, contract_transaction, secret) => self.redeem(contract, contract_transaction, secret),
                     Task::ExtractSecret(transaction, secret) => self.extract_secret(transaction, secret),
                     Task::AuditContract(contract, contract_transaction) => self.audit_contract(contract, contract_transaction),
                 }
@@ -199,12 +202,108 @@ impl AtomicSwapper {
     fn participate(&self, address: Address, amount: u64, secret: H256) {
         unimplemented!();
     }
-    fn redeem(&self, ) {
-        unimplemented!();
-    }
     fn extract_secret(&self, transaction: H256, secret: H256) {
         unimplemented!();
     }
+
+    fn redeem(&self, contract: Bytes, raw_contract_transaction: Bytes, secret: Bytes) {
+        let contractHash256 = dhash256(&contract);        
+        let pushes =  match extractAtomicSwapDataPushes(0, contract.clone()) {
+            Ok(pushes) => pushes,
+            Err(err) => {
+                error!("Cannot parse contract. Reason {:?}", err);
+                return;
+            }
+        };
+
+        let network = Network::Mainnet; //TODO check for network correctness
+
+        Address {
+            hash: pushes.RecipientHash160,
+            network: network,
+            kind: AddressType::P2PKH,
+        };
+
+       let raw_transaction_data: Vec<u8> = raw_contract_transaction.into();
+		let transaction: Transaction = match deserialize(Reader::new(&raw_transaction_data)) {
+            Ok(transaction) => transaction,
+            Err(err) => {
+                error!("Cannot deserialize transaction: {:?}", err);
+                return;
+            }
+        };
+
+        let found_output = transaction.outputs.iter()
+            .enumerate()
+            .find(|(_, output)| {
+                if output.script_pubkey.len() == 34 {       //TODO use script address instead of script hash here
+                    let script_unlocking_hash = &output.script_pubkey[2..];
+                    return script_unlocking_hash == &contractHash256[..];
+                }
+                false
+            });
+
+        let (output_index, output) = match found_output {
+            Some((output_index, output)) => (output_index, output),
+            None => {
+                error!("Transaction does not contain the contract output");
+                return;
+            }
+        };
+
+        let recipientAddr = self.wallet.write().new_keypair();
+        let wallet = self.wallet.read();
+        let key = wallet.find_keypair_with_public_hash(&recipientAddr.hash).unwrap(); //HACK
+
+        let outScript = ScriptBuilder::build_p2wpkh(&recipientAddr.hash);
+
+        //feePerKb, minFeePerKb, err := getFeePerKb(c)
+        let (feePerKb, minFeePerKb) = (0,0);
+
+        let mut redeemTx: Transaction = TransactionBuilder::with_output_and_pubkey(0, outScript.to_bytes())
+            .set_input(&transaction, output_index as u32)
+            .set_lock_time(pushes.LockTime as u32)
+            .into();
+
+        //redeemSize := estimateRedeemSerializeSize(cmd.contract, redeemTx.TxOut)
+        //fee := txrules.FeeForSerializeSize(feePerKb, redeemSize)
+        let fee = 0;
+        //redeemTx.TxOut[0].Value = cmd.contractTx.TxOut[contractOut].Value - int64(fee)
+        //if txrules.IsDustOutput(redeemTx.TxOut[0], minFeePerKb) {
+        //    return fmt.Errorf("redeem output value of %v is dust", btcutil.Amount(redeemTx.TxOut[0].Value))
+        //}
+        let (redeemSig, redeemPubKey) = self.transaction_helper.create_signature_for_input(&redeemTx, 0, output.value, contract.clone().into(), &key);
+        let redeemSigScript = redeemP2WSHContract(contract, redeemSig, redeemPubKey, secret);
+        
+        redeemTx.inputs[0].script_witness = redeemSigScript;
+
+        let redeemTxHash = redeemTx.hash();
+        //redeemFeePerKb := calcFeePerKb(fee, redeemTx.SerializeSize()) //TODO
+
+        println!("Redeem transaction {}:", &redeemTxHash);
+        println!("Size {} bytes", serialize(&redeemTx).len());
+
+        //TODO if verify flag was specified let script run and check that everything is ok
+        // if verify {
+        //     e, err := txscript.NewEngine(cmd.contractTx.TxOut[contractOutPoint.Index].PkScript,
+        //         redeemTx, 0, txscript.StandardVerifyFlags, txscript.NewSigCache(10),
+        //         txscript.NewTxSigHashes(redeemTx), cmd.contractTx.TxOut[contractOut].Value)
+        //     if err != nil {
+        //         panic(err)
+        //     }
+        //     err = e.Execute()
+        //     if err != nil {
+        //         panic(err)
+        //     }
+        // }
+
+        let message_wrapper = self.message_wrapper.to_owned();
+        let task = self.acceptor.async_accept_transaction(redeemTx.clone())
+            .map(move |transaction| message_wrapper.broadcast(&Tx::with_transaction(transaction)));
+        
+        let _ = self.cpupool.spawn(task);
+    }
+    
     fn audit_contract(&self, contract: Bytes, raw_contract_transaction: Bytes) {
         let contractHash256 = dhash256(&contract);
 
@@ -247,7 +346,7 @@ impl AtomicSwapper {
             return;
         }
 
-        let network = Network::Mainnet; 
+        let network = Network::Mainnet; //TODO check for network correctness
 
         //TODO bech32
 //        let contractAddr = Address {
@@ -292,9 +391,7 @@ impl AtomicSwapper {
     }
 
     fn buildContract(&mut self, args: ContractArgs) -> Result<BuiltContract, ContractError> {
-        //TODO real new wallet address
-        let mut refund_wallet = Wallet::new();
-        let refund_address_hash = refund_wallet.new_keypair().hash;
+        let refund_address_hash = self.wallet.write().new_keypair().hash;
 
         let contract = atomicSwapContract(refund_address_hash, args.them,
             args.locktime, args.secret_hash);
@@ -445,4 +542,18 @@ fn extractAtomicSwapDataPushes(_version: u16, pkScript: Bytes) -> Result<AtomicS
         SecretSize: secret_size.into(),
         LockTime: locktime.into(),
     })
+}
+
+// redeemP2SHContract returns the signature script to redeem a contract output
+// using the redeemer's signature and the initiator's secret.  This function
+// assumes P2WSH and appends the contract as the final data push.
+fn redeemP2WSHContract(contract: Bytes, sig: Bytes, pubkey: Bytes, secret: Bytes) -> Vec<Bytes> {
+	vec![sig, pubkey, secret, vec![1].into(), contract]
+}
+
+// refundP2SHContract returns the signature script to refund a contract output
+// using the contract author's signature after the locktime has been reached.
+// This function assumes P2WSH and appends the contract as the final data push.
+fn refundP2WSHContract(contract: Bytes, sig: Bytes, pubkey: Bytes) -> Vec<Bytes> {
+    vec![sig, pubkey, vec![0].into(), contract]
 }

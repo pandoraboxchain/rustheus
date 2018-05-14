@@ -6,7 +6,7 @@ use executor::Task as ExecutorTask;
 use keys::{Address, Private};
 use wallet_manager::Task as WalletTask;
 use primitives::hash::H256;
-use crypto::DHash256;
+use primitives::bytes::Bytes;
 use atomic_swapper::Task as AtomicSwapperTask;
 
 //TODO please find a way to do this better. This tuple is needed to access senders from command closures
@@ -173,6 +173,33 @@ impl InputListener {
                         error!("Can't parse address: {}", err);
                     }
                 }
+                Ok(())
+            },
+        );
+        shell.new_command(
+            "audit",
+            "Atomic swap audit <contract> <contract_raw_transaction>",
+            2,
+            |_, senders, args| {
+                let ref atomic_swapper = senders.2;
+                let contract: Bytes = Bytes::from_str(args[0])?;
+                let contract_raw_transaction = Bytes::from_str(args[1])?;
+                let task = AtomicSwapperTask::AuditContract(contract, contract_raw_transaction);
+                atomic_swapper.send(task)?;
+                Ok(())
+            },
+        );
+        shell.new_command(
+            "redeem",
+            "Atomic swap redeem <contract> <contract_raw_transaction> <secret>",
+            3,
+            |_, senders, args| {
+                let ref atomic_swapper = senders.2;
+                let contract: Bytes = Bytes::from_str(args[0])?;
+                let contract_raw_transaction = Bytes::from_str(args[1])?;
+                let secret = Bytes::from_str(args[2])?;
+                let task = AtomicSwapperTask::Redeem(contract, contract_raw_transaction, secret);
+                atomic_swapper.send(task)?;
                 Ok(())
             },
         );

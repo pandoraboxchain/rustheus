@@ -160,7 +160,7 @@ fn main() {
         storage.clone(),
         wallet_manager_receiver,
         message_wrapper.clone(),
-        wallet,
+        wallet.clone(),
         transaction_helper.clone(),
     );
     let mut executor = Executor::new(
@@ -176,6 +176,7 @@ fn main() {
         cpupool,
         message_wrapper,
         atomic_swapper_receiver,
+        wallet
     );
 
     //setup telnet listener

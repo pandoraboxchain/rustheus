@@ -115,6 +115,11 @@ impl TransactionBuilder {
 		self
 	}
 
+	pub fn set_lock_time(mut self, value: u32) -> TransactionBuilder {
+		self.transaction.lock_time = value;
+		self
+	}
+
 	pub fn add_default_input(self, output_index: u32) -> TransactionBuilder {
 		self.add_input(&Transaction::default(), output_index)
 	}
