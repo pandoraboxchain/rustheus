@@ -221,6 +221,20 @@ impl InputListener {
                 Ok(())
             },
         );
+        shell.new_command(
+            "participate",
+            "Atomic swap participate <contract> <contract_raw_transaction> <secret>",
+            3,
+            |_, senders, args| {
+                let ref atomic_swapper = senders.2;
+                let address = Address::from_str(args[0])?;
+                let amount = args[1].parse::<u64>()?;
+                let secret_hash = H256::from_str(args[2])?;
+                let task = AtomicSwapperTask::Participate(address, amount, secret_hash);
+                atomic_swapper.send(task)?;
+                Ok(())
+            },
+        );
 
         shell
     }

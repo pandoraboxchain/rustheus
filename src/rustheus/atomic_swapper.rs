@@ -8,7 +8,7 @@ use keys::{Address, AddressHash};
 use sync::{AcceptorRef, MessageWrapper};
 use chain::bytes::Bytes;
 use chain::{Transaction};
-use crypto::{dhash160, dhash256};
+use crypto::{dhash160, sha256};
 use std::time::{SystemTime, UNIX_EPOCH};
 use wallet::WalletRef;
 use message::types::Tx;
@@ -130,7 +130,7 @@ impl AtomicSwapper {
             if let Ok(task) = self.task_receiver.recv() {
                 match task {
                     Task::Initiate(address, amount) => self.initiate(address, amount),
-                    Task::Participate(address, amount, secret) => self.participate(address, amount, secret),
+                    Task::Participate(address, amount, secret_hash) => self.participate(address, amount, secret_hash),
                     Task::Redeem(contract, contract_transaction, secret) => self.redeem(contract, contract_transaction, secret),
                     Task::ExtractSecret(transaction, secret) => self.extract_secret(transaction, secret),
                     Task::AuditContract(contract, contract_transaction) => self.audit_contract(contract, contract_transaction),
@@ -141,7 +141,7 @@ impl AtomicSwapper {
         }
     }
 
-    fn initiate(&mut self, address: Address, amount: u64) {
+    fn initiate(&self, address: Address, amount: u64) {
         //TODO check if correct network
 		//let mut secret = [u8; 32];
         let mut secret: [u8; SECRET_SIZE] = [0u8; SECRET_SIZE];
@@ -149,7 +149,7 @@ impl AtomicSwapper {
             error!("Could not generate bytes for secret");
             return;
         }
-        let secret_hash = dhash256(&secret);
+        let secret_hash = sha256(&secret);
         
         let current_time = SystemTime::now();
         let time_since_the_epoch = current_time
@@ -158,7 +158,7 @@ impl AtomicSwapper {
 
         let locktime = time_since_the_epoch.as_secs() + (48 * 60 * 60); //48 hours
 
-        println!("Secret:      {:?}", secret);
+        println!("Secret:      {:?}", Bytes::from(&secret[..]));
         println!("Secret hash: {}\n", secret_hash);
 
         let contract = self.buildContract(ContractArgs {
@@ -199,15 +199,56 @@ impl AtomicSwapper {
         let _ = self.cpupool.spawn(task);
     }
     
-    fn participate(&self, address: Address, amount: u64, secret: H256) {
-        unimplemented!();
+    fn participate(&self, address: Address, amount: u64, secret_hash: H256) {
+        let current_time = SystemTime::now();
+        let time_since_the_epoch = current_time
+            .duration_since(UNIX_EPOCH)
+            .expect("Time went backwards");
+        let locktime = time_since_the_epoch.as_secs() + (24 * 60 * 60); //24 hours        
+
+        let contract = self.buildContract(ContractArgs {
+            them:       address.hash,
+            amount:     amount,
+            locktime:   locktime as u32,
+            secret_hash: secret_hash,
+        });
+
+        let contract = match contract {
+            Ok(built_contract) => built_contract,
+            Err(err) => {
+                error!("Failed to build contract. Reason: {:?}", err);
+                return;
+            }
+        };
+
+        let refundTxHash = contract.refundTx.hash();
+        //contractFeePerKb := calcFeePerKb(b.contractFee, b.contractTx.SerializeSize())
+        //refundFeePerKb := calcFeePerKb(b.refundFee, b.refundTx.SerializeSize())
+
+        // println!("Contract fee: %v (%0.8f BTC/kB)\n", b.contractFee, contractFeePerKb)
+        // println!("Refund fee:   %v (%0.8f BTC/kB)\n\n", b.refundFee, refundFeePerKb)
+        println!("Contract ({}):", contract.contractP2WSH);
+        println!("{:?}\n", contract.contract);
+        
+        println!("Contract transaction ({}):", contract.contractTxHash);
+        println!("{:?}\n", serialize(&contract.contractTx));
+
+        println!("Refund transaction ({}):\n", refundTxHash);
+        println!("{:?}\n", contract.refundTx);
+
+        let message_wrapper = self.message_wrapper.to_owned();
+        let task = self.acceptor.async_accept_transaction(contract.contractTx.clone())
+            .map(move |transaction| message_wrapper.broadcast(&Tx::with_transaction(transaction)));
+        
+        let _ = self.cpupool.spawn(task);
     }
+
     fn extract_secret(&self, transaction: H256, secret: H256) {
         unimplemented!();
     }
 
     fn redeem(&self, contract: Bytes, raw_contract_transaction: Bytes, secret: Bytes) {
-        let contractHash256 = dhash256(&contract);        
+        let contractHash256 = sha256(&contract);        
         let pushes =  match extractAtomicSwapDataPushes(0, contract.clone()) {
             Ok(pushes) => pushes,
             Err(err) => {
@@ -305,7 +346,7 @@ impl AtomicSwapper {
     }
     
     fn audit_contract(&self, contract: Bytes, raw_contract_transaction: Bytes) {
-        let contractHash256 = dhash256(&contract);
+        let contractHash256 = sha256(&contract);
 
 		let raw_transaction_data: Vec<u8> = raw_contract_transaction.into();
 		let transaction: Transaction = match deserialize(Reader::new(&raw_transaction_data)) {
@@ -384,13 +425,13 @@ impl AtomicSwapper {
                 println!("Locktime reached in {} seconds", reachedAt);
             } else {
                 println!("Contract refund time lock has expired");
-        }
+            }
         } else {
             println!("Locktime: block {}", pushes.LockTime);
         }
     }
 
-    fn buildContract(&mut self, args: ContractArgs) -> Result<BuiltContract, ContractError> {
+    fn buildContract(&self, args: ContractArgs) -> Result<BuiltContract, ContractError> {
         let refund_address_hash = self.wallet.write().new_keypair().hash;
 
         let contract = atomicSwapContract(refund_address_hash, args.them,
@@ -398,7 +439,7 @@ impl AtomicSwapper {
 
         let contract = contract.to_bytes();
 
-        let contractP2WSH = dhash256(&contract[..]);
+        let contractP2WSH = sha256(&contract[..]);
         let contractP2SHPkScript = ScriptBuilder::build_p2wsh(&contractP2WSH);
 
         //TODO fee calculation
