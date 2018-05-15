@@ -21,6 +21,7 @@ pub enum Task {
     RequestLatestBlocks(),
 
     //debug and explore
+    GetTransaction(H256),
     GetTransactionMeta(H256),
     GetBlockHash(u32),
 }
@@ -54,6 +55,7 @@ impl Executor {
                 match task {
                     Task::SignBlock(coinbase_recipient) => self.sign_block(coinbase_recipient),
                     Task::GetTransactionMeta(hash) => self.get_transaction_meta(hash),
+                    Task::GetTransaction(hash) => self.get_transaction(hash),
                     Task::GetBlockHash(height) => self.get_block_hash(height),
                     Task::RequestLatestBlocks() => self.request_latest_blocks(),
                 }
@@ -134,6 +136,13 @@ impl Executor {
             Some(meta) => debug!("Meta is {:?}", meta),
             None => error!("No transaction with such hash"),
         }
+    }
+
+    fn get_transaction(&self, hash: H256) {
+       match self.store.transaction(&hash) {
+            Some(tx) => debug!("Transaction info {:?}", tx),
+            None => error!("No transaction with such hash"),
+        } 
     }
 
     fn get_block_hash(&self, height: u32) {

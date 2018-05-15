@@ -138,6 +138,24 @@ impl InputListener {
             },
         );
         shell.new_command(
+            "tx",
+            "Show stored transaction data if any. Usage: tx <hash>",
+            1,
+            |_, senders, args| {
+                let ref executor = senders.0;
+                match H256::from_str(args[0]) {
+                    Ok(hash) => {
+                        executor.send(ExecutorTask::GetTransaction(hash))?;
+                        Ok(())
+                    }
+                    Err(err) => {
+                        error!("Can't parse hash: {}", err);
+                        Ok(()) //TODO find a way to return proper error
+                    }
+                }
+            },
+        );
+        shell.new_command(
             "blockhash",
             "Get block hash at height for debug",
             1,
