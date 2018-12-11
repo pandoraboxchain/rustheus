@@ -63,6 +63,7 @@ use transaction_helper::TransactionHelper;
 use memory_pool::UtxoAndOutputProvider;
 
 fn main() {
+    ßstd::env::set_var("RUST_LOG", "debug,info"); // init console to debug from IDE
     pretty_env_logger::init();
     let matches = App::new("pandora")
         .about(
@@ -193,7 +194,7 @@ fn main() {
 		storage: storage,
 		acceptor,
 	};
-	let _rpc_server = rpc::new_http(config.rpc_config, rpc_deps).expect("Can't launch json-rpc service");
+//	let _rpc_server = rpc::new_http(config.rpc_config, rpc_deps).expect("Can't launch json-rpc service");
 
     //launch services in different threads //TODO named threads
     let input_listener_thread = thread::spawn(move || input_listener.run());
