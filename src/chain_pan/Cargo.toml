@@ -1,0 +1,12 @@
+[package]
+name = "chain_pan"
+version = "0.0.1"
+authors = ["strider <korostelyov@pandoraboxchain.ai>"]
+
+[dependencies]
+rustc-serialize = "0.3"
+heapsize = "0.4"
+bitcrypto = { path = "../crypto" }
+primitives = { path = "../primitives" }
+serialization = { path = "../serialization" }
+serialization_derive = { path = "../serialization_derive" }
