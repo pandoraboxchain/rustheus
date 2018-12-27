@@ -1,5 +1,5 @@
 use std::cmp;
-use chain::{OutPoint, TransactionOutput, IndexedBlock, IndexedTransaction};
+use chain_pan::{OutPoint, TransactionOutput, IndexedBlock, IndexedTransaction};
 use {TransactionOutputProvider};
 
 fn transaction_output(transactions: &[IndexedTransaction], prevout: &OutPoint) -> Option<TransactionOutput> {

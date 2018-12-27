@@ -12,7 +12,7 @@ bit-vec = "0.4"
 lru-cache = "0.1"
 primitives = { path = "../primitives" }
 serialization = { path = "../serialization" }
-chain = { path = "../chain" }
+chain_pan = { path = "../chain_pan" }
 script = { path = "../script" } #TODO maybe get rid of script dependency for db
 
 [dev-dependencies]

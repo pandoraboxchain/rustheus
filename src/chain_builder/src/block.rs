@@ -250,7 +250,7 @@ impl<F> BlockHeaderBuilder<F> where F: Invoke<chain::BlockHeader> {
 		self.callback.invoke(
 			chain::BlockHeader {
 				time: self.time,
-				previous_header_hash: self.parent,
+				previous_header_hash: vec![self.parent],
 				bits: self.bits,
 				nonce: self.nonce,
 				merkle_root_hash: self.merkle_root,
@@ -586,7 +586,7 @@ fn example5() {
 		.build();
 
 	assert_eq!(hash, "3e24319d69a77c58e2da8c7331a21729482835c96834dafb3e1793c1253847c7".into());
-	assert_eq!(block.header().previous_header_hash, "0000000000000000000000000000000000000000000000000000000000000000".into());
+	assert_eq!(block.header().previous_header_hash, vec!["0000000000000000000000000000000000000000000000000000000000000000".into()]);
 }
 
 #[test]

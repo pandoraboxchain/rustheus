@@ -4,7 +4,7 @@ use std::path::Path;
 use parking_lot::RwLock;
 use hash::{H160, H256};
 use bytes::Bytes;
-use chain::{
+use chain_pan::{
 	IndexedBlock, IndexedBlockHeader, IndexedTransaction, BlockHeader, Block, Transaction,
 	OutPoint, TransactionOutput
 };
@@ -157,18 +157,18 @@ impl<T> BlockChainDatabase<T> where T: KeyValueDatabase {
 			return Ok(BlockOrigin::KnownBlock)
 		}
 
-		if best_block.hash == header.raw.previous_header_hash {
+		if best_block.hash == header.raw.previous_header_hash[0] {
 			return Ok(BlockOrigin::CanonChain {
 				block_number: best_block.number + 1
 			})
 		}
 
-		if !self.contains_block(header.raw.previous_header_hash.clone().into()) {
+		if !self.contains_block(header.raw.previous_header_hash[0].clone().into()) {
 			return Err(Error::UnknownParent)
 		}
 
 		let mut sidechain_route = Vec::new();
-		let mut next_hash = header.raw.previous_header_hash.clone();
+		let mut next_hash = header.raw.previous_header_hash[0].clone();
 
 		for fork_len in 0..MAX_FORK_ROUTE_PRESET {
 			match self.block_number(&next_hash) {
@@ -192,7 +192,7 @@ impl<T> BlockChainDatabase<T> where T: KeyValueDatabase {
 					sidechain_route.push(next_hash.clone());
 					next_hash = self.block_header(next_hash.into())
 						.expect("not to find orphaned side chain in database; qed")
-						.previous_header_hash;
+						.previous_header_hash[0].clone();
 				}
 			}
 		}
@@ -205,7 +205,7 @@ impl<T> BlockChainDatabase<T> where T: KeyValueDatabase {
 			return Ok(())
 		}
 
-		let parent_hash = block.header.raw.previous_header_hash.clone();
+		let parent_hash = block.header.raw.previous_header_hash[0].clone();
 		if !self.contains_block(parent_hash.clone().into()) && !parent_hash.is_zero() {
 			return Err(Error::UnknownParent);
 		}
@@ -256,13 +256,13 @@ impl<T> BlockChainDatabase<T> where T: KeyValueDatabase {
 			None => return Err(Error::CannotCanonize),
 		};
 
-		if best_block.hash != block.header.raw.previous_header_hash {
+		if best_block.hash != block.header.raw.previous_header_hash[0] {
 			return Err(Error::CannotCanonize);
 		}
 
 		let new_best_block = BestBlock {
 			hash: hash.clone(),
-			number: if block.header.raw.previous_header_hash.is_zero() {
+			number: if block.header.raw.previous_header_hash.len() > 0 {
 				assert_eq!(best_block.number, 0);
 				0
 			} else {
@@ -324,11 +324,11 @@ impl<T> BlockChainDatabase<T> where T: KeyValueDatabase {
 		let block_hash = best_block.hash.clone();
 
 		let new_best_block = BestBlock {
-			hash: block.header.raw.previous_header_hash.clone(),
+			hash: block.header.raw.previous_header_hash[0].clone(),
 			number: if best_block.number > 0 {
 				best_block.number - 1
 			} else {
-				assert!(block.header.raw.previous_header_hash.is_zero());
+				assert!(block.header.raw.previous_header_hash[0].is_zero());
 				0
 			}
 		};

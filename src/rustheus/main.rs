@@ -1,7 +1,7 @@
 #![deny(unused_must_use)] //this deny is needed primarily not to forget to unwrap Sender::send()
 
 extern crate bitcrypto as crypto;
-extern crate chain;
+extern crate chain_pan;
 extern crate clap;
 extern crate ctrlc;
 extern crate db;
@@ -63,7 +63,7 @@ use transaction_helper::TransactionHelper;
 use memory_pool::UtxoAndOutputProvider;
 
 fn main() {
-    ßstd::env::set_var("RUST_LOG", "debug,info"); // init console to debug from IDE
+    std::env::set_var("RUST_LOG", "debug,info"); // init console to debug from IDE
     pretty_env_logger::init();
     let matches = App::new("pandora")
         .about(

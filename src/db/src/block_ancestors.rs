@@ -1,4 +1,4 @@
-use chain::BlockHeader;
+use chain_pan::BlockHeader;
 use {BlockRef, BlockHeaderProvider};
 
 pub struct BlockAncestors<'a> {
@@ -21,7 +21,7 @@ impl<'a> Iterator for BlockAncestors<'a> {
 	fn next(&mut self) -> Option<Self::Item> {
 		let result = self.block.take().and_then(|block| self.headers.block_header(block));
 		self.block = match result {
-			Some(ref header) => Some(BlockRef::Hash(header.previous_header_hash.clone())),
+			Some(ref header) => Some(BlockRef::Hash(header.previous_header_hash[0].clone())),
 			None => None,
 		};
 		result

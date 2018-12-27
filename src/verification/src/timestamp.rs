@@ -6,7 +6,7 @@ use primitives::hash::H256;
 /// The header should be later expected to have higher timestamp
 /// than this median timestamp
 pub fn median_timestamp(header: &BlockHeader, store: &BlockHeaderProvider) -> u32 {
-	median_timestamp_inclusive(header.previous_header_hash.clone(), store)
+	median_timestamp_inclusive(header.previous_header_hash[0].clone(), store)
 }
 
 /// Returns median timestamp, of given header + its ancestors.

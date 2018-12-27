@@ -1,6 +1,6 @@
 use std::sync::Arc;
 use db;
-use chain::IndexedBlock;
+use chain_pan::IndexedBlock;
 use params::NetworkParams;
 
 pub fn open_db(data_dir: String, db_cache: usize) -> db::SharedStore {

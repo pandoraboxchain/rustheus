@@ -1,6 +1,6 @@
 use hash::{H160, H256};
 use bytes::Bytes;
-use chain::{Transaction, OutPoint, TransactionOutput};
+use chain_pan::{Transaction, OutPoint, TransactionOutput};
 use {TransactionMeta};
 
 /// Should be used to obtain all transactions from canon chain and forks.

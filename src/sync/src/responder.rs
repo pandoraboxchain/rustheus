@@ -105,12 +105,12 @@ impl Responder {
                 };
 
                 if let Some(block_number) = self.storage
-                    .block_number(&block_header.previous_header_hash)
+                    .block_number(&block_header.previous_header_hash[0])
                 {
                     return Some(block_number);
                 }
 
-                block_hash = block_header.previous_header_hash;
+                block_hash = block_header.previous_header_hash[0].clone();
             }
         }
 

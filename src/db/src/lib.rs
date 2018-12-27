@@ -5,11 +5,10 @@ extern crate parking_lot;
 extern crate log;
 extern crate bit_vec;
 extern crate lru_cache;
-
 extern crate primitives;
 extern crate serialization as ser;
-extern crate chain;
 extern crate script;  //TODO maybe get rid of script dependency for db
+extern crate chain_pan;
 
 pub mod kv;
 mod best_block;
