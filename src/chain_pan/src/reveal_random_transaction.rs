@@ -47,9 +47,9 @@ impl Deserializable for RevealRandomTransaction {
         let test_commit_hash: H256 = reader.read()?;
         let test_key: Private = reader.read()?; // cant read private crashes on malformed data
         Ok(RevealRandomTransaction {
-            version: reader.read()?,
-            commit_hash : reader.read()?,
-            key : reader.read()?
+            version: test_version,
+            commit_hash : test_commit_hash,
+            key : test_key
         })
     }
 }
@@ -77,6 +77,10 @@ mod test {
         //let mut t : Private = hex_test.into();
 //        println!("{:?}", key_serialized);
 //        println!("{:?}", key_serialized_by_to_string);
+        
+        let ser_key = serialize(&key);
+        println!("key {:?}", ser_key);
+        let deser_key: Private = deserialize(&ser_key as &[u8]).unwrap();
 
         let mut string_key = key.to_string();
         let mut test : RevealRandomTransaction = RevealRandomTransaction {
@@ -86,9 +90,8 @@ mod test {
         };
         let mut serializedTx = serialize(&test);
         println!("{:?}", serializedTx);
-        let mut des_tx_test_tx : RevealRandomTransaction = "01000000000000000000000000000000000000000000000000000000000000000000000000000000d53b80842f4ea32806ce5e723a255ddd6490cfd28dac38c58bf9254c0577330600".into();
-        // malformed data on deseraialization
-        let mut deserializedTx : RevealRandomTransaction = "01000000000000000000000000000000000000000000000000000000000000000000000033354b53434b50384e5579425a504343517573785277676d7a397366764a5145676247756b6d6d486570577735427a7039356d75".into();
+        
+        let mut deserializedTx : RevealRandomTransaction = "01000000000000000000000000000000000000000000000000000000000000000000000000d53b80842f4ea32806ce5e723a255ddd6490cfd28dac38c58bf9254c0577330600".into();
         println!("{}", "test");
     }
 
