@@ -1,5 +1,6 @@
-use chain::{Block, BlockHeader, Transaction, TransactionInput, TransactionOutput};
-use chain::IndexedBlock;
+use chain_pan::{Block, BlockHeader, Transaction, TransactionInput, TransactionOutput};
+use chain_pan::IndexedBlock;
+use chain_pan::PaymentTransaction;
 use crypto::DHash256;
 use std::sync::mpsc::Receiver;
 use memory_pool::MemoryPoolRef;
@@ -73,7 +74,7 @@ impl Executor {
 
         let header = BlockHeader {
             version: 1,
-            previous_header_hash: self.store.best_block().hash,
+            previous_header_hash: vec![self.store.best_block().hash],
             merkle_root_hash: DHash256::default().finish(),
             witness_merkle_root_hash: Default::default(),
             time: time_since_the_epoch.as_secs() as u32,
@@ -118,7 +119,7 @@ impl Executor {
             .push_num(block_height.into())
             .into_script();
 
-        Transaction {
+        Transaction::PaymentTransaction( PaymentTransaction {
             version: 0,
             inputs: vec![TransactionInput::coinbase(prefix.into())],
             outputs: vec![
@@ -128,7 +129,7 @@ impl Executor {
                 },
             ],
             lock_time: 0,
-        }
+        })
     }
 
     fn get_transaction_meta(&self, hash: H256) {

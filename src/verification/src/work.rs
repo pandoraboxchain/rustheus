@@ -95,7 +95,7 @@ pub fn work_required_testnet(parent_hash: H256, time: u32, height: u32, store: &
 			None => { break; }
 		};
 		bits.push(previous_header.bits);
-		block_ref = previous_header.previous_header_hash.into();
+		block_ref = previous_header.previous_header_hash[0].clone().into();
 	}
 
 	for (index, bit) in bits.into_iter().enumerate() {

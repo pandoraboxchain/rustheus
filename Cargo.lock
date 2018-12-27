@@ -219,6 +219,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "chain_pan"
+version = "0.0.1"
+dependencies = [
+ "bitcrypto 0.1.0",
+ "heapsize 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "keys 0.1.0",
+ "primitives 0.1.0",
+ "rustc-serialize 0.3.24 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serialization 0.1.0",
+ "serialization_derive 0.1.0",
+]
+
+[[package]]
 name = "chrono"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -379,8 +392,8 @@ name = "db"
 version = "0.1.0"
 dependencies = [
  "bit-vec 0.4.4 (registry+https://github.com/rust-lang/crates.io-index)",
- "chain 0.1.0",
  "chain_builder 0.1.0",
+ "chain_pan 0.0.1",
  "elastic-array 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "lru-cache 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -757,6 +770,7 @@ dependencies = [
  "primitives 0.1.0",
  "rand 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-serialize 0.3.24 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serialization 0.1.0",
 ]
 
 [[package]]
@@ -1501,8 +1515,8 @@ name = "rustheus"
 version = "0.1.0"
 dependencies = [
  "bitcrypto 0.1.0",
- "chain 0.1.0",
  "chain_builder 0.1.0",
+ "chain_pan 0.0.1",
  "clap 2.25.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "ctrlc 3.0.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "db 0.1.0",

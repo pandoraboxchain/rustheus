@@ -1,13 +1,14 @@
-use chain::constants::SEQUENCE_LOCKTIME_DISABLE_FLAG;
-use chain::{OutPoint, Transaction};
+use chain_pan::constants::SEQUENCE_LOCKTIME_DISABLE_FLAG;
+use chain_pan::{OutPoint, Transaction};
 use db::{TransactionUtxoProvider, TransactionOutputProvider};
 use keys::{Private, KeyPair};
 use script::{Builder, Script, SighashBase, SignatureVersion, TransactionInputSigner};
 use wallet::WalletRef;
-use chain::{TransactionInput, TransactionOutput};
+use chain_pan::{TransactionInput, TransactionOutput};
 use std::sync::Arc;
 use memory_pool::UtxoAndOutputProvider;
 use primitives::bytes::Bytes;
+use chain_pan::PaymentTransaction;
 
 pub type TransactionHelperRef = Arc<TransactionHelper>;
 
@@ -61,7 +62,7 @@ impl TransactionHelper {
     }
 
     //TODO accept fee
-    pub fn fund_transaction(&self, transaction: Transaction) -> Result<Transaction, FundError> {
+    pub fn fund_transaction(&self, transaction: PaymentTransaction) -> Result<PaymentTransaction, FundError> {
         let unspent_out_points = self.get_unspent_out_points();
         if unspent_out_points.is_empty() {
             return Err(FundError::NoFunds);
@@ -105,7 +106,7 @@ impl TransactionHelper {
             return Err(FundError::NotEnoughFunds);
         }
 
-        Ok(Transaction {
+        Ok(PaymentTransaction {
             version: 0,
             inputs,
             outputs,
@@ -127,7 +128,7 @@ impl TransactionHelper {
             SighashBase::All.into())
     }
 
-    pub fn sign_transaction(&self, transaction: Transaction) -> Result<Transaction, SignError> {
+    pub fn sign_transaction(&self, transaction: PaymentTransaction) -> Result<PaymentTransaction, SignError> {
         let signer: TransactionInputSigner = transaction.clone().into();
         let signed_inputs: Result<Vec<_>, _> = transaction
             .inputs
@@ -138,7 +139,7 @@ impl TransactionHelper {
 
         match signed_inputs {
             Err(err) => Err(err),
-            Ok(signed_inputs) => Ok(Transaction {
+            Ok(signed_inputs) => Ok(PaymentTransaction {
                 version: transaction.version,
                 inputs: signed_inputs,
                 outputs: transaction.outputs,

@@ -84,7 +84,7 @@ impl NetworkParams {
 					block_header: BlockHeader
 					{
 						version: 1,
-						previous_header_hash: 0.into(),
+						previous_header_hash: vec![0.into()],
 						merkle_root_hash: 0.into(),
 						witness_merkle_root_hash: 0.into(),
 						time: 1234567,
