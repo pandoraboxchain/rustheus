@@ -1,7 +1,7 @@
 use lru_cache::LruCache;
 use parking_lot::Mutex;
 use hash::H256;
-use chain::BlockHeader;
+use chain_pan::BlockHeader;
 use kv::{KeyValueDatabase, KeyState, Operation, KeyValue, Key, Value, Transaction};
 
 pub struct CacheDatabase<T> where T: KeyValueDatabase {
