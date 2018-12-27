@@ -1,14 +1,12 @@
-use hex::FromHex;
 use hash::H256;
-use ser::{deserialize};
 use merkle_root::merkle_root;
 use block_header::BlockHeader;
-use transaction::Transaction;
 use super::RepresentH256;
+use transaction::Transaction;
 
 pub struct Block {
     pub block_header: BlockHeader,
-    pub transactions: Vec<Box<Transaction>>,
+    pub transactions: Vec<Transaction>,
 }
 
 impl RepresentH256 for Block {
@@ -16,18 +14,13 @@ impl RepresentH256 for Block {
 }
 
 impl Block {
-    pub fn new(header: BlockHeader, transactions: Vec<Box<Transaction>>) -> Self {
+    pub fn new(header: BlockHeader, transactions: Vec<Transaction>) -> Self {
         Block {block_header: header, transactions}
     }
 
     /// Returns block's merkle root.
     pub fn merkle_root(&self) -> H256 {
-        // old realization
-        //let hashes = self.transactions.iter().map(Transaction::hash).collect::<Vec<H256>>();
-        let mut hashes :Vec<H256> = vec![];
-        for tx in &self.transactions {
-            hashes.push(tx.hash())
-        }
+        let hashes = self.transactions.iter().map(Transaction::hash).collect::<Vec<H256>>();
         merkle_root(&hashes)
     }
 
@@ -37,11 +30,7 @@ impl Block {
             None => vec![],
             Some((_, rest)) => {
                 let mut hashes = vec![H256::from(0)];
-                // old realization
-                //hashes.extend(rest.iter().map(Transaction::witness_hash));
-                for tx in rest {
-                    hashes.push(tx.witness_hash())
-                }
+                hashes.extend(rest.iter().map(Transaction::witness_hash));
                 hashes
             },
         };
@@ -52,7 +41,7 @@ impl Block {
         &self.block_header
     }
 
-    pub fn transactions(&self) -> &[Box<Transaction>] {
+    pub fn transactions(&self) -> &Vec<Transaction> {
         &self.transactions
     }
 

@@ -6,6 +6,7 @@ authors = ["strider <korostelyov@pandoraboxchain.ai>"]
 [dependencies]
 rustc-serialize = "0.3"
 heapsize = "0.4"
+keys = { path = "../keys"}
 bitcrypto = { path = "../crypto" }
 primitives = { path = "../primitives" }
 serialization = { path = "../serialization" }

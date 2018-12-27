@@ -5,11 +5,16 @@ use std::str::FromStr;
 use secp256k1::key;
 use secp256k1::Message as SecpMessage;
 use hex::ToHex;
+use hex::FromHex;
 use base58::{ToBase58, FromBase58};
 use crypto::checksum;
 use hash::H520;
+use std::io;
 use network::Network;
 use {Secret, DisplayLayout, Error, Message, Signature, CompactSignature, SECP256K1};
+use ser::Error as SerializationError;
+use ser::{Serializable, Deserializable, Stream, Reader};
+use ser::{serialize, deserialize};
 
 /// Secret with additional network identifier and format type
 #[derive(PartialEq)]
@@ -131,6 +136,25 @@ impl FromStr for Private {
 impl From<&'static str> for Private {
 	fn from(s: &'static str) -> Self {
 		s.parse().unwrap()
+	}
+}
+
+impl Serializable for Private {
+	fn serialize(&self, stream: &mut Stream) {
+		stream
+			.append(&self.network)
+			.append(&self.secret)
+			.append(&self.compressed);
+	}
+}
+
+impl Deserializable for Private {
+	fn deserialize<T>(reader: &mut Reader<T>) -> Result<Self, SerializationError> where Self: Sized, T: io::Read {
+		Ok( Private {
+			network : reader.read()?,
+			secret : reader.read()?,
+			compressed: reader.read()?
+		})
 	}
 }
 
