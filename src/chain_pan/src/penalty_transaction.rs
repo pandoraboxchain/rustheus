@@ -47,10 +47,10 @@ impl Deserializable for PenaltyTransaction {
 
 #[cfg(test)]
 mod tests {
+
     use hash::H256;
-    use ser::{Serializable, serialize};
+    use ser::Serializable;
     use super::PenaltyTransaction;
-    use std::mem::size_of;
 
     #[test]
     fn test_transaction_reader() {
@@ -59,7 +59,6 @@ mod tests {
             version:1,
             conflicts: vec![H256::from(0), H256::from(1)]
         };
-        let mut serialized = serialize(&expected); // for test performing
         assert_eq!(actual, expected);
     }
 

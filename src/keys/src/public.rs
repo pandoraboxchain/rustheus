@@ -5,6 +5,10 @@ use hex::ToHex;
 use crypto::dhash160;
 use hash::{H264, H520};
 use {AddressHash, Error, CompactSignature, Signature, Message, SECP256K1};
+use std::io;
+use ser::Error as SerializationError;
+use ser::{Serializable, Deserializable, Stream, Reader};
+use ser::{serialize, deserialize};
 
 /// Secret public key
 pub enum Public {
@@ -101,5 +105,29 @@ impl fmt::Debug for Public {
 impl fmt::Display for Public {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		self.to_hex().fmt(f)
+	}
+}
+
+impl Serializable for Public {
+	fn serialize(&self, stream: &mut Stream) {
+		match self {
+			&Public::Normal(ref hash) => { stream
+				.append(&(0 as u8))
+				.append(hash);},
+			&Public::Compressed(ref hash) => {stream
+				.append(&(1 as u8))
+				.append(hash);}
+		}
+	}
+}
+
+impl Deserializable for Public {
+	fn deserialize<T>(reader: &mut Reader<T>) -> Result<Self, SerializationError> where Self: Sized, T: io::Read {
+		let public_type: u8 = reader.read()?;
+		match public_type {
+			0 => Ok(Public::Normal(reader.read()?)),
+			1 => Ok(Public::Compressed(reader.read()?)),
+			_ => Err(SerializationError::MalformedData)
+		}
 	}
 }

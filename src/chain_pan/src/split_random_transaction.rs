@@ -1,15 +1,15 @@
-
 use hash::H256;
+use hex::FromHex;
 use crypto::dhash256;
-use ser::{serialize, serialize_with_flags, SERIALIZE_TRANSACTION_WITNESS};
+use ser::{serialize, deserialize};
 use ser::{Error, Serializable, Deserializable, Stream, Reader};
 use std::io;
 
-#[derive(Debug, PartialEq, Default, Clone)]
+#[derive(Debug, PartialEq)]
 pub struct SplitRandomTransaction {
     pub version: i32,
-    pub pubkey_index: H256,
-    pub random: u8
+    pub pubkey_index: u8,
+    pub pieces: u32     //TODO change to proper type
 }
 
 impl SplitRandomTransaction {
@@ -17,19 +17,70 @@ impl SplitRandomTransaction {
         dhash256(&serialize(self))
     }
 
-    pub fn witness_hash(&self) -> H256 {
-        dhash256(&serialize_with_flags(self, SERIALIZE_TRANSACTION_WITNESS))
+    pub fn pubkey_index(&self) -> &u8 {
+        &self.pubkey_index
+    }
+
+    pub fn pieces(&self) -> &u32 {
+        &self.pieces
+    }
+}
+
+impl From<&'static str> for SplitRandomTransaction {
+    fn from(s: &'static str) -> Self {
+        deserialize(&s.from_hex().unwrap() as &[u8]).unwrap()
     }
 }
 
 impl Serializable for SplitRandomTransaction {
-    fn serialize(&self, s: &mut Stream) {
-        unimplemented!()
+    fn serialize(&self, stream: &mut Stream) {
+        stream
+            .append(&self.version)
+            .append(&self.pubkey_index)
+            .append(&self.pieces);
     }
 }
 
 impl Deserializable for SplitRandomTransaction {
     fn deserialize<T>(reader: &mut Reader<T>) -> Result<Self, Error> where Self: Sized, T: io::Read {
-        unimplemented!()
+        Ok( SplitRandomTransaction {
+            version : reader.read()?,
+            pubkey_index : reader.read()?,
+            pieces : reader.read()?
+        })
     }
+}
+
+#[cfg(test)]
+mod test {
+
+    use super::SplitRandomTransaction;
+    use hash::H256;
+    use ser::Serializable;
+
+    #[test]
+    fn test_transaction_reader() {
+        let actual: SplitRandomTransaction = "010000000203000000".into();
+        let expected : SplitRandomTransaction = SplitRandomTransaction {
+            version : 1,
+            pubkey_index : 2,
+            pieces : 3
+        };
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_transaction_hash() {
+        let tx: SplitRandomTransaction = "010000000203000000".into();
+        let hash : H256 = H256::from_reversed_str("6b281addb22f8aa53a67e9b5f460ac6096c1c7e8b5c5bc36e6fa589372ac670c");
+        assert_eq!(tx.hash(), hash);
+    }
+
+    #[test]
+    fn test_transaction_serialized_len() {
+        let raw_tx: &'static str = "010000000203000000";
+        let tx: SplitRandomTransaction = raw_tx.into();
+        assert_eq!(tx.serialized_size(), raw_tx.len() / 2);
+    }
+
 }

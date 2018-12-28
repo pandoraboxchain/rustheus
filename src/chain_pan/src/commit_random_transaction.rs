@@ -8,8 +8,8 @@ use std::io;
 #[derive(Debug, PartialEq, Default, Clone)]
 pub struct CommitRandomTransaction {
     pub version: i32,
-    pub random: Vec<u32>,    // 75 bytes
-    pub pubkey_index: u16    // sets only two bytes pubkey index
+    pub random: Vec<u32>,
+    pub pubkey_index: u16
 }
 
 impl CommitRandomTransaction {
@@ -58,7 +58,7 @@ impl Deserializable for CommitRandomTransaction {
 mod test {
 
     use hash::H256;
-    use ser::{Serializable, serialize};
+    use ser::Serializable;
     use super::CommitRandomTransaction;
 
     #[test]
@@ -69,7 +69,6 @@ mod test {
             random: vec![1, 75],
             pubkey_index:1
         };
-        let mut serialized = serialize(&expected);
         assert_eq!(actual, expected);
     }
 

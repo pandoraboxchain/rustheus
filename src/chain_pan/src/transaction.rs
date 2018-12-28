@@ -8,8 +8,6 @@ use public_key_transaction::PublicKeyTransaction;
 use private_key_transaction::PrivateKeyTransaction;
 use split_random_transaction::SplitRandomTransaction;
 use ser::{Serializable, Deserializable, Error, Stream, Reader};
-use constants::{SEQUENCE_FINAL, LOCKTIME_THRESHOLD};
-use core::fmt;
 
 #[derive(Debug, PartialEq)]
 pub enum Transaction {
@@ -73,7 +71,7 @@ impl Transaction {
 }
 
 impl Serializable for Transaction {
-    fn serialize(&self, s: &mut Stream) {
+    fn serialize(&self, stream: &mut Stream) {
         unimplemented!()
     }
 }

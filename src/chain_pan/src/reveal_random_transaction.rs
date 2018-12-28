@@ -35,7 +35,8 @@ impl From<&'static str> for RevealRandomTransaction {
 
 impl Serializable for RevealRandomTransaction {
     fn serialize(&self, stream: &mut Stream) {
-        stream.append(&self.version)
+        stream
+            .append(&self.version)
             .append(&self.commit_hash)
             .append(&self.key);
     }
@@ -43,9 +44,6 @@ impl Serializable for RevealRandomTransaction {
 
 impl Deserializable for RevealRandomTransaction {
     fn deserialize<T>(reader: &mut Reader<T>) -> Result<Self, Error> where Self: Sized, T: io::Read {
-        let test_version: i32 = reader.read()?;
-        let test_commit_hash: H256 = reader.read()?;
-        let test_key: Private = reader.read()?; // cant read private crashes on malformed data
         Ok(RevealRandomTransaction {
             version: reader.read()?,
             commit_hash : reader.read()?,
@@ -58,47 +56,34 @@ impl Deserializable for RevealRandomTransaction {
 mod test {
 
     use hash::H256;
-    use ser::{Serializable, serialize, deserialize};
+    use ser::Serializable;
     use super::RevealRandomTransaction;
     use keys::Private;
-    use hex::FromHex;
     use std::str;
 
     #[test]
     fn test_transaction_reader() {
-        // default Private serialization methods
+        let actual : RevealRandomTransaction = "01000000000000000000000000000000000000000000000000000000000000000000000000d53b80842f4ea32806ce5e723a255ddd6490cfd28dac38c58bf9254c0577330600".into();
         let key: Private = "5KSCKP8NUyBZPCCQusxRwgmz9sfvJQEgbGukmmHepWw5Bzp95mu".into();
-//        let mut key_serialized_by_to_string = key.to_string();
-//        assert_eq!("5KSCKP8NUyBZPCCQusxRwgmz9sfvJQEgbGukmmHepWw5Bzp95mu", key_serialized_by_to_string);
-
-        // test new serialization
-//        let mut key_serialized = serialize(&key); // by serializator
-//        let mut hex_test = "00000000d53b80842f4ea32806ce5e723a255ddd6490cfd28dac38c58bf9254c0577330600".from_hex().unwrap();
-        //let mut t : Private = hex_test.into();
-//        println!("{:?}", key_serialized);
-//        println!("{:?}", key_serialized_by_to_string);
-
-        let mut string_key = key.to_string();
-        let mut test : RevealRandomTransaction = RevealRandomTransaction {
+        let expected : RevealRandomTransaction = RevealRandomTransaction {
             version: 1,
             commit_hash: H256::from(0),
             key
         };
-        let mut serializedTx = serialize(&test);
-        println!("{:?}", serializedTx);
-        let mut des_tx_test_tx : RevealRandomTransaction = "01000000000000000000000000000000000000000000000000000000000000000000000000000000d53b80842f4ea32806ce5e723a255ddd6490cfd28dac38c58bf9254c0577330600".into();
-        // malformed data on deseraialization
-        let mut deserializedTx : RevealRandomTransaction = "01000000000000000000000000000000000000000000000000000000000000000000000033354b53434b50384e5579425a504343517573785277676d7a397366764a5145676247756b6d6d486570577735427a7039356d75".into();
-        println!("{}", "test");
+        assert_eq!(actual, expected);
     }
 
     #[test]
     fn test_transaction_hash() {
-
+        let tx: RevealRandomTransaction = "01000000000000000000000000000000000000000000000000000000000000000000000000d53b80842f4ea32806ce5e723a255ddd6490cfd28dac38c58bf9254c0577330600".into();
+        let hash : H256 = H256::from_reversed_str("b7f4ebf401284a85bc2de5ca080aa1f816b8b6cdcf73adcf90fd93be37ae891b");
+        assert_eq!(tx.hash(), hash);
     }
 
     #[test]
     fn test_transaction_serialized_len() {
-
+        let raw_tx: &'static str = "01000000000000000000000000000000000000000000000000000000000000000000000000d53b80842f4ea32806ce5e723a255ddd6490cfd28dac38c58bf9254c0577330600";
+        let tx: RevealRandomTransaction = raw_tx.into();
+        assert_eq!(tx.serialized_size(), raw_tx.len() / 2);
     }
 }

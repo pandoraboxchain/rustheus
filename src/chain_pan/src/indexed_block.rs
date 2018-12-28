@@ -34,8 +34,8 @@ impl cmp::PartialEq for IndexedBlock {
 impl IndexedBlock {
 	pub fn new(header: IndexedBlockHeader, transactions: Vec<IndexedTransaction>) -> Self {
 		IndexedBlock {
-			header: header,
-			transactions: transactions,
+			header,
+			transactions,
 		}
 	}
 

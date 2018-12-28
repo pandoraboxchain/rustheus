@@ -10,8 +10,8 @@ pub enum Network {
 impl Serializable for Network {
 	fn serialize(&self, stream: &mut Stream) {
 		match self {
-			&Network::Mainnet => {stream.append(&0);},
-			&Network::Testnet => {stream.append(&1);}
+			&Network::Mainnet => {stream.append(&(0 as u8));},
+			&Network::Testnet => {stream.append(&(1 as u8));}
 		}
 	}
 }
