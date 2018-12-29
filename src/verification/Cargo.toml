@@ -10,7 +10,7 @@ log = "0.3"
 rayon = "0.8"
 parking_lot = { version = "~0.5.5", features = ["deadlock_detection"] }
 primitives = { path = "../primitives" }
-chain = { path = "../chain"  }
+chain_pan = { path = "../chain_pan"  }
 serialization = { path = "../serialization" }
 script = { path = "../script" }
 params = { path = "../params" }

@@ -3,10 +3,12 @@ use hash::H256;
 use hex::FromHex;
 use ser::{Serializable, serialized_list_size, serialized_list_size_with_flags, deserialize, SERIALIZE_TRANSACTION_WITNESS};
 use block::Block;
-use transaction::Transaction;
+use payment_transaction::PaymentTransaction;
 use merkle_root::merkle_root;
 use indexed_header::IndexedBlockHeader;
 use indexed_transaction::IndexedTransaction;
+
+//TODO create separated impl for pan tx,s
 
 #[derive(Debug, Clone, Deserializable)]
 pub struct IndexedBlock {
@@ -50,14 +52,14 @@ impl IndexedBlock {
 	pub fn size(&self) -> usize {
 		let header_size = self.header.raw.serialized_size();
 		let transactions = self.transactions.iter().map(|tx| &tx.raw).collect::<Vec<_>>();
-		let txs_size = serialized_list_size::<Transaction, &Transaction>(&transactions);
+		let txs_size = serialized_list_size::<PaymentTransaction, &PaymentTransaction>(&transactions);
 		header_size + txs_size
 	}
 
 	pub fn size_with_witness(&self) -> usize {
 		let header_size = self.header.raw.serialized_size();
 		let transactions = self.transactions.iter().map(|tx| &tx.raw).collect::<Vec<_>>();
-		let txs_size = serialized_list_size_with_flags::<Transaction, &Transaction>(&transactions, SERIALIZE_TRANSACTION_WITNESS);
+		let txs_size = serialized_list_size_with_flags::<PaymentTransaction, &PaymentTransaction>(&transactions, SERIALIZE_TRANSACTION_WITNESS);
 		header_size + txs_size
 	}
 

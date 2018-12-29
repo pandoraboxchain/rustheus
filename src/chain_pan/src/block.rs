@@ -2,11 +2,12 @@ use hash::H256;
 use merkle_root::merkle_root;
 use block_header::BlockHeader;
 use super::RepresentH256;
-use transaction::Transaction;
+                            //TODO refer realisation for Transaction enum
+use payment_transaction::PaymentTransaction;
 
 pub struct Block {
     pub block_header: BlockHeader,
-    pub transactions: Vec<Transaction>,
+    pub transactions: Vec<PaymentTransaction>,
 }
 
 impl RepresentH256 for Block {
@@ -14,13 +15,13 @@ impl RepresentH256 for Block {
 }
 
 impl Block {
-    pub fn new(header: BlockHeader, transactions: Vec<Transaction>) -> Self {
+    pub fn new(header: BlockHeader, transactions: Vec<PaymentTransaction>) -> Self {
         Block {block_header: header, transactions}
     }
 
     /// Returns block's merkle root.
     pub fn merkle_root(&self) -> H256 {
-        let hashes = self.transactions.iter().map(Transaction::hash).collect::<Vec<H256>>();
+        let hashes = self.transactions.iter().map(PaymentTransaction::hash).collect::<Vec<H256>>();
         merkle_root(&hashes)
     }
 
@@ -30,7 +31,7 @@ impl Block {
             None => vec![],
             Some((_, rest)) => {
                 let mut hashes = vec![H256::from(0)];
-                hashes.extend(rest.iter().map(Transaction::witness_hash));
+                hashes.extend(rest.iter().map(PaymentTransaction::witness_hash));
                 hashes
             },
         };
@@ -41,7 +42,7 @@ impl Block {
         &self.block_header
     }
 
-    pub fn transactions(&self) -> &Vec<Transaction> {
+    pub fn transactions(&self) -> &Vec<PaymentTransaction> {
         &self.transactions
     }
 

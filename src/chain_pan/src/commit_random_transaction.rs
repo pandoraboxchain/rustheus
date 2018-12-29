@@ -3,9 +3,8 @@ use hex::FromHex;
 use crypto::dhash256;
 use ser::{serialize, deserialize};
 use ser::{Error, Serializable, Deserializable, Stream, Reader};
-use std::io;
 
-#[derive(Debug, PartialEq, Default, Clone)]
+#[derive(Debug, PartialEq, Clone, Default, Serializable, Deserializable)]
 pub struct CommitRandomTransaction {
     pub version: i32,
     pub random: Vec<u32>,
@@ -29,28 +28,6 @@ impl CommitRandomTransaction {
 impl From<&'static str> for CommitRandomTransaction {
     fn from(s: &'static str) -> Self {
         deserialize(&s.from_hex().unwrap() as &[u8]).unwrap()
-    }
-}
-
-impl Serializable for CommitRandomTransaction {
-    fn serialize(&self, stream: &mut Stream) {
-        stream.append(&self.version)
-            .append_list(&self.random)
-            .append(&self.pubkey_index);
-    }
-}
-
-impl Deserializable for CommitRandomTransaction {
-    fn deserialize<T>(reader: &mut Reader<T>) -> Result<Self, Error> where Self: Sized, T: io::Read {
-        let version: i32 = reader.read()?;
-        let random: Vec<u32> = reader.read_list()?;
-        let pubkey_index: u16 = reader.read()?;
-        Ok( CommitRandomTransaction {
-            version,
-            random,
-            pubkey_index
-        })
-
     }
 }
 

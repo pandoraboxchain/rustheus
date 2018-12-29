@@ -5,7 +5,7 @@ use parking_lot::RwLock;
 use hash::{H160, H256};
 use bytes::Bytes;
 use chain_pan::{
-	IndexedBlock, IndexedBlockHeader, IndexedTransaction, BlockHeader, Block, Transaction,
+	IndexedBlock, IndexedBlockHeader, IndexedTransaction, BlockHeader, Block, PaymentTransaction,
 	OutPoint, TransactionOutput
 };
 use ser::{
@@ -434,7 +434,7 @@ impl<T> BlockProvider for BlockChainDatabase<T> where T: KeyValueDatabase {
 			.unwrap_or_default()
 	}
 
-	fn block_transactions(&self, block_ref: BlockRef) -> Vec<Transaction> {
+	fn block_transactions(&self, block_ref: BlockRef) -> Vec<PaymentTransaction> {
 		self.block_transaction_hashes(block_ref)
 			.into_iter()
 			.filter_map(|hash| self.get(Key::Transaction(hash)))
@@ -538,7 +538,7 @@ impl<T> TransactionProvider for BlockChainDatabase<T> where T: KeyValueDatabase 
 		self.transaction(hash).map(|tx| serialize(&tx))
 	}
 
-	fn transaction(&self, hash: &H256) -> Option<Transaction> {
+	fn transaction(&self, hash: &H256) -> Option<PaymentTransaction> {
 		self.get(Key::Transaction(hash.clone()))
 			.and_then(Value::as_transaction)
 	}

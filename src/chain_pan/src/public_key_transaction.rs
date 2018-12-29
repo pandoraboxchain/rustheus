@@ -3,10 +3,9 @@ use hex::FromHex;
 use crypto::dhash256;
 use ser::{serialize, deserialize};
 use ser::{Error, Serializable, Deserializable, Stream, Reader};
-use std::io;
 use keys::Public;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Serializable, Deserializable)]
 pub struct PublicKeyTransaction {
     pub version: i32,
     pub generated_pubkey: Public,
@@ -30,25 +29,6 @@ impl PublicKeyTransaction {
 impl From<&'static str> for PublicKeyTransaction {
     fn from(s: &'static str) -> Self {
         deserialize(&s.from_hex().unwrap() as &[u8]).unwrap()
-    }
-}
-
-impl Serializable for PublicKeyTransaction {
-    fn serialize(&self, stream: &mut Stream) {
-        stream
-            .append(&self.version)
-            .append(&self.generated_pubkey)
-            .append(&self.pubkey_index);
-    }
-}
-
-impl Deserializable for PublicKeyTransaction {
-    fn deserialize<T>(reader: &mut Reader<T>) -> Result<Self, Error> where Self: Sized, T: io::Read {
-        Ok(PublicKeyTransaction {
-            version : reader.read()?,
-            generated_pubkey : reader.read()?,
-            pubkey_index : reader.read()?
-        })
     }
 }
 

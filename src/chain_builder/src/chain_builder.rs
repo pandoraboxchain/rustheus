@@ -1,16 +1,16 @@
 use primitives::hash::H256;
 use ser::Serializable;
 use primitives::bytes::Bytes;
-use chain::{Transaction, IndexedTransaction, TransactionInput, TransactionOutput, OutPoint};
+use chain::{PaymentTransaction, IndexedTransaction, TransactionInput, TransactionOutput, OutPoint};
 
 #[derive(Debug, Default, Clone)]
 pub struct ChainBuilder {
-	pub transactions: Vec<Transaction>,
+	pub transactions: Vec<PaymentTransaction>,
 }
 
 #[derive(Debug, Default, Clone)]
 pub struct TransactionBuilder {
-	pub transaction: Transaction,
+	pub transaction: PaymentTransaction,
 }
 
 impl ChainBuilder {
@@ -20,7 +20,7 @@ impl ChainBuilder {
 		}
 	}
 
-	pub fn at(&self, transaction_index: usize) -> Transaction {
+	pub fn at(&self, transaction_index: usize) -> PaymentTransaction {
 		self.transactions[transaction_index].clone()
 	}
 
@@ -33,8 +33,8 @@ impl ChainBuilder {
 	}
 }
 
-impl Into<Transaction> for TransactionBuilder {
-	fn into(self) -> Transaction {
+impl Into<PaymentTransaction> for TransactionBuilder {
+	fn into(self) -> PaymentTransaction {
 		self.transaction
 	}
 }
@@ -66,7 +66,7 @@ impl TransactionBuilder {
 
 	pub fn with_default_input(output_index: u32) -> TransactionBuilder {
 		let builder = TransactionBuilder::default();
-		builder.add_input(&Transaction::default(), output_index)
+		builder.add_input(&PaymentTransaction::default(), output_index)
 	}
 
 	pub fn reset(self) -> TransactionBuilder {
@@ -121,11 +121,11 @@ impl TransactionBuilder {
 	}
 
 	pub fn add_default_input(self, output_index: u32) -> TransactionBuilder {
-		self.add_input(&Transaction::default(), output_index)
+		self.add_input(&PaymentTransaction::default(), output_index)
 	}
 
 
-	pub fn add_input(mut self, transaction: &Transaction, output_index: u32) -> TransactionBuilder {
+	pub fn add_input(mut self, transaction: &PaymentTransaction, output_index: u32) -> TransactionBuilder {
 		self.transaction.inputs.push(TransactionInput {
 			previous_output: OutPoint {
 				hash: transaction.hash(),
@@ -139,10 +139,10 @@ impl TransactionBuilder {
 	}
 
 	pub fn set_default_input(self, output_index: u32) -> TransactionBuilder {
-		self.set_input(&Transaction::default(), output_index)
+		self.set_input(&PaymentTransaction::default(), output_index)
 	}
 
-	pub fn set_input(mut self, transaction: &Transaction, output_index: u32) -> TransactionBuilder {
+	pub fn set_input(mut self, transaction: &PaymentTransaction, output_index: u32) -> TransactionBuilder {
 		self.transaction.inputs = vec![TransactionInput {
 			previous_output: OutPoint {
 				hash: transaction.hash(),

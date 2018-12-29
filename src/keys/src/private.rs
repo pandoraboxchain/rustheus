@@ -17,7 +17,7 @@ use ser::{Serializable, Deserializable, Stream, Reader};
 use ser::{serialize, deserialize};
 
 /// Secret with additional network identifier and format type
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone)]
 pub struct Private {
 	/// The network on which this key should be used.
 	pub network: Network,

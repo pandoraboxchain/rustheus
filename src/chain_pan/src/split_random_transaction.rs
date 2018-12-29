@@ -3,9 +3,8 @@ use hex::FromHex;
 use crypto::dhash256;
 use ser::{serialize, deserialize};
 use ser::{Error, Serializable, Deserializable, Stream, Reader};
-use std::io;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Default, Serializable, Deserializable)]
 pub struct SplitRandomTransaction {
     pub version: i32,
     pub pubkey_index: u8,
@@ -32,24 +31,7 @@ impl From<&'static str> for SplitRandomTransaction {
     }
 }
 
-impl Serializable for SplitRandomTransaction {
-    fn serialize(&self, stream: &mut Stream) {
-        stream
-            .append(&self.version)
-            .append(&self.pubkey_index)
-            .append(&self.pieces);
-    }
-}
-
-impl Deserializable for SplitRandomTransaction {
-    fn deserialize<T>(reader: &mut Reader<T>) -> Result<Self, Error> where Self: Sized, T: io::Read {
-        Ok( SplitRandomTransaction {
-            version : reader.read()?,
-            pubkey_index : reader.read()?,
-            pieces : reader.read()?
-        })
-    }
-}
+//TODO with complex type of pieces implement Serializable and Deserializable traits proper
 
 #[cfg(test)]
 mod test {

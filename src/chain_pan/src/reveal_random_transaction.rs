@@ -3,10 +3,9 @@ use hex::FromHex;
 use crypto::dhash256;
 use ser::{serialize, deserialize};
 use ser::{Error, Serializable, Deserializable, Stream, Reader};
-use std::io;
 use keys::Private;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Serializable, Deserializable)]
 pub struct RevealRandomTransaction {
     pub version: i32,
     pub commit_hash: H256,
@@ -30,25 +29,6 @@ impl RevealRandomTransaction {
 impl From<&'static str> for RevealRandomTransaction {
     fn from(s: &'static str) -> Self {
         deserialize(&s.from_hex().unwrap() as &[u8]).unwrap()
-    }
-}
-
-impl Serializable for RevealRandomTransaction {
-    fn serialize(&self, stream: &mut Stream) {
-        stream
-            .append(&self.version)
-            .append(&self.commit_hash)
-            .append(&self.key);
-    }
-}
-
-impl Deserializable for RevealRandomTransaction {
-    fn deserialize<T>(reader: &mut Reader<T>) -> Result<Self, Error> where Self: Sized, T: io::Read {
-        Ok(RevealRandomTransaction {
-            version: reader.read()?,
-            commit_hash : reader.read()?,
-            key : reader.read()?
-        })
     }
 }
 
