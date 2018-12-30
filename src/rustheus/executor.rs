@@ -1,4 +1,4 @@
-use chain_pan::{Block, BlockHeader, Transaction, TransactionInput, TransactionOutput};
+use chain_pan::{Block, BlockHeader, TransactionInput, TransactionOutput};
 use chain_pan::IndexedBlock;
 use chain_pan::PaymentTransaction;
 use crypto::DHash256;
@@ -87,7 +87,7 @@ impl Executor {
         //TODO take not fixed number of transactions, but deduce it from block size
         let indexed_transactions =
             mempool.remove_n_with_strategy(50, OrderingStrategy::ByTransactionScore);
-        let block_tx: Vec<Transaction> =
+        let block_tx: Vec<PaymentTransaction> =
             indexed_transactions.into_iter().map(|tx| tx.raw).collect();
         transactions.extend(block_tx);
         let mut block = Block::new(header, transactions);
@@ -111,7 +111,7 @@ impl Executor {
         }
     }
 
-    fn create_coinbase(&self, recipient: Address) -> Transaction {
+    fn create_coinbase(&self, recipient: Address) -> PaymentTransaction {
         let block_height = self.store.best_block().number + 1;
 
         //add block height as coinbase prefix
@@ -119,7 +119,7 @@ impl Executor {
             .push_num(block_height.into())
             .into_script();
 
-        Transaction::PaymentTransaction( PaymentTransaction {
+        PaymentTransaction {
             version: 0,
             inputs: vec![TransactionInput::coinbase(prefix.into())],
             outputs: vec![
@@ -129,7 +129,7 @@ impl Executor {
                 },
             ],
             lock_time: 0,
-        })
+        }
     }
 
     fn get_transaction_meta(&self, hash: H256) {

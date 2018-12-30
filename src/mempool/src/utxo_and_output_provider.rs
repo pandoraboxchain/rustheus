@@ -1,4 +1,4 @@
-use chain::{Transaction, TransactionOutput, OutPoint};
+use chain::{PaymentTransaction, TransactionOutput, OutPoint};
 use db::{TransactionOutputProvider, TransactionUtxoProvider, SharedStore};
 use memory_pool::{DoubleSpendCheckResult, HashedOutPoint, NonFinalDoubleSpendSet, MemoryPoolRef};
 use verification::TransactionError;

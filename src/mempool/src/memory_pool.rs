@@ -8,7 +8,7 @@
 use db::{TransactionProvider, TransactionOutputProvider, TransactionUtxoProvider};
 use primitives::bytes::Bytes;
 use primitives::hash::{H160, H256};
-use chain::{IndexedTransaction, Transaction, OutPoint, TransactionOutput};
+use chain::{IndexedTransaction, PaymentTransaction, OutPoint, TransactionOutput};
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -55,7 +55,7 @@ pub struct MemoryPool {
 #[derive(Debug)]
 pub struct Entry {
 	/// Transaction
-	pub transaction: Transaction,
+	pub transaction: PaymentTransaction,
 	/// In-pool ancestors hashes for this transaction
 	pub ancestors: HashSet<H256>,
 	/// Transaction hash (stored for effeciency)
@@ -396,7 +396,7 @@ impl Storage {
 		}
 	}
 
-	pub fn read_by_hash(&self, h: &H256) -> Option<&Transaction> {
+	pub fn read_by_hash(&self, h: &H256) -> Option<&PaymentTransaction> {
 		self.by_hash.get(h).map(|e| &e.transaction)
 	}
 
@@ -428,7 +428,7 @@ impl Storage {
 			})
 	}
 
-	pub fn check_double_spend(&self, transaction: &Transaction) -> DoubleSpendCheckResult {
+	pub fn check_double_spend(&self, transaction: &PaymentTransaction) -> DoubleSpendCheckResult {
 		let mut double_spends: HashSet<HashedOutPoint> = HashSet::new();
 		let mut dependent_spends: HashSet<HashedOutPoint> = HashSet::new();
 
@@ -568,7 +568,7 @@ impl Storage {
 }
 
 impl ReferenceStorage {
-	pub fn has_in_pool_ancestors(&self, removed: Option<&HashSet<H256>>, by_hash: &HashMap<H256, Entry>, transaction: &Transaction) -> bool {
+	pub fn has_in_pool_ancestors(&self, removed: Option<&HashSet<H256>>, by_hash: &HashMap<H256, Entry>, transaction: &PaymentTransaction) -> bool {
 		transaction.inputs.iter()
 			.any(|input| by_hash.contains_key(&input.previous_output.hash)
 				&& !removed.map_or(false, |r| r.contains(&input.previous_output.hash)))
@@ -673,12 +673,12 @@ impl MemoryPool {
 
 	/// Removes single transaction by its hash.
 	/// All descedants remain in the pool.
-	pub fn remove_by_hash(&mut self, h: &H256) -> Option<Transaction> {
+	pub fn remove_by_hash(&mut self, h: &H256) -> Option<PaymentTransaction> {
 		self.storage.remove_by_hash(h).map(|entry| entry.transaction)
 	}
 
 	/// Checks if `transaction` spends some outputs, already spent by inpool transactions.
-	pub fn check_double_spend(&self, transaction: &Transaction) -> DoubleSpendCheckResult {
+	pub fn check_double_spend(&self, transaction: &PaymentTransaction) -> DoubleSpendCheckResult {
 		self.storage.check_double_spend(transaction)
 	}
 
@@ -688,7 +688,7 @@ impl MemoryPool {
 	}
 
 	/// Reads single transaction by its hash.
-	pub fn read_by_hash(&self, h: &H256) -> Option<&Transaction> {
+	pub fn read_by_hash(&self, h: &H256) -> Option<&PaymentTransaction> {
 		self.storage.read_by_hash(h)
 	}
 
@@ -723,7 +723,7 @@ impl MemoryPool {
 	}
 
 	/// Get transaction by hash
-	pub fn get(&self, hash: &H256) -> Option<&Transaction> {
+	pub fn get(&self, hash: &H256) -> Option<&PaymentTransaction> {
 		self.storage.get_by_hash(hash).map(|entry| &entry.transaction)
 	}
 
@@ -772,7 +772,7 @@ impl MemoryPool {
 		}
 	}
 
-	fn get_ancestors(&self, t: &Transaction) -> HashSet<H256> {
+	fn get_ancestors(&self, t: &PaymentTransaction) -> HashSet<H256> {
 		let mut ancestors: HashSet<H256> = HashSet::new();
 		let ancestors_entries = t.inputs.iter()
 			.filter_map(|input| self.storage.get_by_hash(&input.previous_output.hash));
@@ -785,11 +785,11 @@ impl MemoryPool {
 		ancestors
 	}
 
-	fn get_transaction_size(&self, t: &Transaction) -> usize {
+	fn get_transaction_size(&self, t: &PaymentTransaction) -> usize {
 		t.serialized_size()
 	}
 
-	fn get_transaction_miner_fee(&self, t: &Transaction) -> i64 {
+	fn get_transaction_miner_fee(&self, t: &PaymentTransaction) -> i64 {
 		let input_value = 0; // TODO: sum all inputs of transaction
 		let output_value = t.outputs.iter().fold(0, |acc, output| acc + output.value);
 		(output_value - input_value) as i64
@@ -812,7 +812,7 @@ impl TransactionProvider for MemoryPool {
 		self.get(hash).map(|t| serialize(t))
 	}
 
-	fn transaction(&self, hash: &H256) -> Option<Transaction> {
+	fn transaction(&self, hash: &H256) -> Option<PaymentTransaction> {
 		self.get(hash).cloned()
 	}
 }
@@ -921,11 +921,11 @@ mod tests {
 
 		let size1 = pool.heap_size_of_children();
 
-		pool.insert_verified(Transaction::default().into());
+		pool.insert_verified(PaymentTransaction::default().into());
 		let size2 = pool.heap_size_of_children();
 		assert!(size2 > size1);
 
-		pool.insert_verified(Transaction::default().into());
+		pool.insert_verified(PaymentTransaction::default().into());
 		let size3 = pool.heap_size_of_children();
 		assert!(size3 > size2);
 	}
@@ -933,11 +933,11 @@ mod tests {
 	#[test]
 	fn test_memory_pool_insert_same_transaction() {
 		let mut pool = MemoryPool::new();
-		pool.insert_verified(Transaction::default().into());
+		pool.insert_verified(PaymentTransaction::default().into());
 		assert_eq!(pool.get_transactions_ids().len(), 1);
 
 		// insert the same transaction again
-		pool.insert_verified(Transaction::default().into());
+		pool.insert_verified(PaymentTransaction::default().into());
 		assert_eq!(pool.get_transactions_ids().len(), 1);
 	}
 
@@ -947,11 +947,11 @@ mod tests {
 		assert_eq!(pool.read_with_strategy(OrderingStrategy::ByTimestamp), None);
 		assert_eq!(pool.read_n_with_strategy(100, OrderingStrategy::ByTimestamp), vec![]);
 
-		pool.insert_verified(Transaction::default().into());
-		assert_eq!(pool.read_with_strategy(OrderingStrategy::ByTimestamp), Some(Transaction::default().hash()));
-		assert_eq!(pool.read_n_with_strategy(100, OrderingStrategy::ByTimestamp), vec![Transaction::default().hash()]);
-		assert_eq!(pool.read_with_strategy(OrderingStrategy::ByTimestamp), Some(Transaction::default().hash()));
-		assert_eq!(pool.read_n_with_strategy(100, OrderingStrategy::ByTimestamp), vec![Transaction::default().hash()]);
+		pool.insert_verified(PaymentTransaction::default().into());
+		assert_eq!(pool.read_with_strategy(OrderingStrategy::ByTimestamp), Some(PaymentTransaction::default().hash()));
+		assert_eq!(pool.read_n_with_strategy(100, OrderingStrategy::ByTimestamp), vec![PaymentTransaction::default().hash()]);
+		assert_eq!(pool.read_with_strategy(OrderingStrategy::ByTimestamp), Some(PaymentTransaction::default().hash()));
+		assert_eq!(pool.read_n_with_strategy(100, OrderingStrategy::ByTimestamp), vec![PaymentTransaction::default().hash()]);
 	}
 
 	#[test]
@@ -960,15 +960,15 @@ mod tests {
 		assert_eq!(pool.remove_with_strategy(OrderingStrategy::ByTimestamp), None);
 		assert_eq!(pool.remove_n_with_strategy(100, OrderingStrategy::ByTimestamp), vec![]);
 
-		pool.insert_verified(Transaction::default().into());
+		pool.insert_verified(PaymentTransaction::default().into());
 		let removed = pool.remove_with_strategy(OrderingStrategy::ByTimestamp);
 		assert!(removed.is_some());
-		assert_eq!(removed.unwrap(), Transaction::default().into());
+		assert_eq!(removed.unwrap(), PaymentTransaction::default().into());
 
-		pool.insert_verified(Transaction::default().into());
+		pool.insert_verified(PaymentTransaction::default().into());
 		let removed = pool.remove_n_with_strategy(100, OrderingStrategy::ByTimestamp);
 		assert_eq!(removed.len(), 1);
-		assert_eq!(removed[0], Transaction::default().into());
+		assert_eq!(removed[0], PaymentTransaction::default().into());
 
 		assert_eq!(pool.remove_with_strategy(OrderingStrategy::ByTimestamp), None);
 		assert_eq!(pool.remove_n_with_strategy(100, OrderingStrategy::ByTimestamp), vec![]);
@@ -978,13 +978,13 @@ mod tests {
 	fn test_memory_pool_remove_by_hash() {
 		let mut pool = MemoryPool::new();
 
-		pool.insert_verified(Transaction::default().into());
+		pool.insert_verified(PaymentTransaction::default().into());
 		assert_eq!(pool.get_transactions_ids().len(), 1);
 
 		// remove and check remaining transactions
-		let removed = pool.remove_by_hash(&Transaction::default().hash());
+		let removed = pool.remove_by_hash(&PaymentTransaction::default().hash());
 		assert!(removed.is_some());
-		assert_eq!(removed.unwrap(), Transaction::default());
+		assert_eq!(removed.unwrap(), PaymentTransaction::default());
 		assert_eq!(pool.get_transactions_ids().len(), 0);
 
 		// remove non-existant transaction
@@ -1418,8 +1418,8 @@ mod tests {
 
 	#[test]
 	fn test_memory_poolis_spent() {
-		let tx1: Transaction = TransactionBuilder::with_default_input(0).into();
-		let tx2: Transaction = TransactionBuilder::with_default_input(1).into();
+		let tx1: PaymentTransaction = TransactionBuilder::with_default_input(0).into();
+		let tx2: PaymentTransaction = TransactionBuilder::with_default_input(1).into();
 		let out1 = tx1.inputs[0].previous_output.clone();
 		let out2 = tx2.inputs[0].previous_output.clone();
 		let mut memory_pool = MemoryPool::new();

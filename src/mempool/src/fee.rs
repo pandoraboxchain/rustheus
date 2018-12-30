@@ -1,8 +1,8 @@
-use chain::Transaction;
+use chain::PaymentTransaction;
 use ser::Serializable;
 use db::TransactionProvider;
 
-pub fn transaction_fee(store: &TransactionProvider, transaction: &Transaction) -> u64 {
+pub fn transaction_fee(store: &TransactionProvider, transaction: &PaymentTransaction) -> u64 {
 	let inputs_sum = transaction.inputs.iter().map(|input| {
 		let input_transaction = store.transaction(&input.previous_output.hash)
 			.expect("transaction must be verified by caller");
@@ -12,7 +12,7 @@ pub fn transaction_fee(store: &TransactionProvider, transaction: &Transaction) -
 	inputs_sum.saturating_sub(outputs_sum)
 }
 
-pub fn transaction_fee_rate(store: &TransactionProvider, transaction: &Transaction) -> u64 {
+pub fn transaction_fee_rate(store: &TransactionProvider, transaction: &PaymentTransaction) -> u64 {
 	transaction_fee(store, transaction) / transaction.serialized_size() as u64
 }
 

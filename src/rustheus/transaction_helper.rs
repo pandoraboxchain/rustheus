@@ -1,5 +1,5 @@
 use chain_pan::constants::SEQUENCE_LOCKTIME_DISABLE_FLAG;
-use chain_pan::{OutPoint, Transaction};
+use chain_pan::{OutPoint};
 use db::{TransactionUtxoProvider, TransactionOutputProvider};
 use keys::{Private, KeyPair};
 use script::{Builder, Script, SighashBase, SignatureVersion, TransactionInputSigner};
@@ -116,7 +116,7 @@ impl TransactionHelper {
 
     // createSig creates and returns the serialized raw signature and compressed
     // pubkey for a transaction input signature
-    pub fn create_signature_for_input(&self, transaction: &Transaction, input_index: usize,
+    pub fn create_signature_for_input(&self, transaction: &PaymentTransaction, input_index: usize,
 		input_amount: u64, script: Script,	keys: &KeyPair) -> (Bytes, Bytes) {
         let signer: TransactionInputSigner = transaction.clone().into();        
         

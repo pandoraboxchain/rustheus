@@ -1,13 +1,22 @@
+use hex::FromHex;
 use hash::H256;
+use ser::{deserialize};
 use merkle_root::merkle_root;
 use block_header::BlockHeader;
 use super::RepresentH256;
                             //TODO refer realisation for Transaction enum
 use payment_transaction::PaymentTransaction;
 
+#[derive(Debug, PartialEq, Clone, Serializable, Deserializable)]
 pub struct Block {
     pub block_header: BlockHeader,
     pub transactions: Vec<PaymentTransaction>,
+}
+
+impl From<&'static str> for Block {
+    fn from(s: &'static str) -> Self {
+        deserialize(&s.from_hex().unwrap() as &[u8]).unwrap()
+    }
 }
 
 impl RepresentH256 for Block {
@@ -38,7 +47,7 @@ impl Block {
         merkle_root(&hashes)
     }
 
-    pub fn block_header(&self) -> &BlockHeader {
+    pub fn header(&self) -> &BlockHeader {
         &self.block_header
     }
 

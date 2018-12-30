@@ -8,7 +8,7 @@ use v1::types::{GetRawTransactionResponse, RawTransaction, Transaction, Transact
                 TransactionOutput, TransactionOutputs};
 use v1::types::H256;
 use v1::helpers::errors::{execution, invalid_params};
-use chain::Transaction as GlobalTransaction;
+use chain::PaymentTransaction as GlobalTransaction;
 use primitives::bytes::Bytes as GlobalBytes;
 use primitives::hash::H256 as GlobalH256;
 use jsonrpc_core::futures::Future;

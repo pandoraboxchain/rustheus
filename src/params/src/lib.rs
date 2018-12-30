@@ -1,7 +1,7 @@
 #[macro_use]
 extern crate lazy_static;
 
-extern crate chain;
+extern crate chain_pan as chain;
 extern crate primitives;
 
 mod params;

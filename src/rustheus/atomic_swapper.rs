@@ -7,7 +7,7 @@ use primitives::hash::{H256, H160};
 use keys::{Address, AddressHash};
 use sync::{AcceptorRef, MessageWrapper};
 use chain_pan::bytes::Bytes;
-use chain_pan::{Transaction};
+use chain_pan::{PaymentTransaction};
 use crypto::{dhash160, sha256};
 use std::time::{SystemTime, UNIX_EPOCH};
 use wallet::WalletRef;
@@ -82,9 +82,9 @@ struct BuiltContract {
     contract:       Bytes,
     contractP2WSH:  H256,
     contractTxHash: H256,
-    contractTx:     Transaction,
+    contractTx:     PaymentTransaction,
     contractFee:    u64,
-    refundTx:       Transaction,
+    refundTx:       PaymentTransaction,
     refundFee:      u64,
 }
 
@@ -266,7 +266,7 @@ impl AtomicSwapper {
         };
 
        let raw_transaction_data: Vec<u8> = raw_contract_transaction.into();
-		let transaction: Transaction = match deserialize(Reader::new(&raw_transaction_data)) {
+		let transaction: PaymentTransaction = match deserialize(Reader::new(&raw_transaction_data)) {
             Ok(transaction) => transaction,
             Err(err) => {
                 error!("Cannot deserialize transaction: {:?}", err);
@@ -301,7 +301,7 @@ impl AtomicSwapper {
         //feePerKb, minFeePerKb, err := getFeePerKb(c)
         let (feePerKb, minFeePerKb) = (0,0);
 
-        let mut redeemTx: Transaction = TransactionBuilder::with_output_and_pubkey(0, outScript.to_bytes())
+        let mut redeemTx: PaymentTransaction = TransactionBuilder::with_output_and_pubkey(0, outScript.to_bytes())
             .set_input(&transaction, output_index as u32)
             .set_lock_time(pushes.LockTime as u32)
             .into();
@@ -349,7 +349,7 @@ impl AtomicSwapper {
         let contractHash256 = sha256(&contract);
 
 		let raw_transaction_data: Vec<u8> = raw_contract_transaction.into();
-		let transaction: Transaction = match deserialize(Reader::new(&raw_transaction_data)) {
+		let transaction: PaymentTransaction = match deserialize(Reader::new(&raw_transaction_data)) {
             Ok(transaction) => transaction,
             Err(err) => {
                 error!("Cannot deserialize transaction: {:?}", err);
@@ -445,7 +445,7 @@ impl AtomicSwapper {
         //TODO fee calculation
         let (feePerKb, minFeePerKb) = (0,0);
 
-        let transaction: Transaction = TransactionBuilder::with_output_and_pubkey(args.amount, contractP2SHPkScript.to_bytes()).into();
+        let transaction: PaymentTransaction = TransactionBuilder::with_output_and_pubkey(args.amount, contractP2SHPkScript.to_bytes()).into();
 
         let funded_transaction = self.transaction_helper.fund_transaction(transaction)?;
         let contractTx = self.transaction_helper.sign_transaction(funded_transaction)?;

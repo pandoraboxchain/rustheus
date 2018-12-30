@@ -5,7 +5,7 @@ use keys::KeyPair;
 use crypto::dhash256;
 use hash::H256;
 use ser::Stream;
-use chain::{Transaction, TransactionOutput, OutPoint, TransactionInput};
+use chain::{PaymentTransaction, TransactionOutput, OutPoint, TransactionInput};
 use {Script, Builder};
 
 #[derive(Debug, PartialEq, Clone, Copy)]
@@ -118,8 +118,8 @@ pub struct TransactionInputSigner {
 }
 
 /// Used for resigning and loading test transactions
-impl From<Transaction> for TransactionInputSigner {
-	fn from(t: Transaction) -> Self {
+impl From<PaymentTransaction> for TransactionInputSigner {
+	fn from(t: PaymentTransaction) -> Self {
 		TransactionInputSigner {
 			version: t.version,
 			inputs: t.inputs.into_iter().map(Into::into).collect(),
@@ -250,7 +250,7 @@ impl TransactionInputSigner {
 			SighashBase::None => Vec::new(),
 		};
 
-		let tx = Transaction {
+		let tx = PaymentTransaction {
 			inputs: inputs,
 			outputs: outputs,
 			version: self.version,

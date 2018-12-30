@@ -5,7 +5,7 @@ extern crate memory_pool;
 extern crate db;
 extern crate params;
 extern crate verification;
-extern crate chain;
+extern crate chain_pan as chain;
 extern crate message;
 extern crate p2p;
 extern crate bitcrypto as crypto;
