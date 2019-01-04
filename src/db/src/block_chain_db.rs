@@ -4,7 +4,7 @@ use std::path::Path;
 use parking_lot::RwLock;
 use hash::{H160, H256};
 use bytes::Bytes;
-use chain_pan::{
+use chain::{
 	IndexedBlock, IndexedBlockHeader, IndexedTransaction, BlockHeader, Block, PaymentTransaction,
 	OutPoint, TransactionOutput
 };

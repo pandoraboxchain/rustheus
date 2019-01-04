@@ -1,6 +1,5 @@
-use chain_pan::constants::SEQUENCE_LOCKTIME_DISABLE_FLAG;
-use chain_pan::OutPoint;
-use chain_pan::PaymentTransaction;
+use chain::constants::SEQUENCE_LOCKTIME_DISABLE_FLAG;
+use chain::{TransactionInput, TransactionOutput, PaymentTransaction, OutPoint};
 //use chain_builder::TransactionBuilder;
 use db::SharedStore;
 use keys::{Address, Private};
@@ -12,7 +11,6 @@ use std::sync::mpsc::Receiver;
 use sync::MessageWrapper;
 use wallet::{Wallet, WalletRef};
 use transaction_helper::TransactionHelperRef;
-use chain_pan::{TransactionInput, TransactionOutput};
 
 #[derive(Debug, PartialEq)]
 pub enum Task {

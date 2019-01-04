@@ -55,7 +55,7 @@ pub mod tests {
 
 	impl MinerClientCoreApi for SuccessMinerClientCore {
 		fn get_block_template(&self) -> memory_pool::BlockTemplate {
-			let tx: chain::Transaction = "00000000013ba3edfd7a7b12b27ac72c3e67768f617fc81bc3888a51323a9fb8aa4b1e5e4a0000000000000000000101000000000000000000000000".into();
+			let tx: chain::PaymentTransaction = "00000000013ba3edfd7a7b12b27ac72c3e67768f617fc81bc3888a51323a9fb8aa4b1e5e4a0000000000000000000101000000000000000000000000".into();
 			memory_pool::BlockTemplate {
 				version: 777,
 				previous_header_hash: H256::from(1),

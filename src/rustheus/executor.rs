@@ -1,6 +1,6 @@
-use chain_pan::{Block, BlockHeader, TransactionInput, TransactionOutput};
-use chain_pan::IndexedBlock;
-use chain_pan::PaymentTransaction;
+use chain::{Block, BlockHeader, TransactionInput, TransactionOutput};
+use chain::IndexedBlock;
+use chain::PaymentTransaction;
 use crypto::DHash256;
 use std::sync::mpsc::Receiver;
 use memory_pool::MemoryPoolRef;

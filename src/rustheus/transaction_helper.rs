@@ -1,14 +1,14 @@
-use chain_pan::constants::SEQUENCE_LOCKTIME_DISABLE_FLAG;
-use chain_pan::{OutPoint};
+use chain::constants::SEQUENCE_LOCKTIME_DISABLE_FLAG;
+use chain::{OutPoint};
 use db::{TransactionUtxoProvider, TransactionOutputProvider};
 use keys::{Private, KeyPair};
 use script::{Builder, Script, SighashBase, SignatureVersion, TransactionInputSigner};
 use wallet::WalletRef;
-use chain_pan::{TransactionInput, TransactionOutput};
+use chain::{TransactionInput, TransactionOutput};
 use std::sync::Arc;
 use memory_pool::UtxoAndOutputProvider;
 use primitives::bytes::Bytes;
-use chain_pan::PaymentTransaction;
+use chain::PaymentTransaction;
 
 pub type TransactionHelperRef = Arc<TransactionHelper>;
 

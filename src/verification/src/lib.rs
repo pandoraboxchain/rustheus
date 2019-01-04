@@ -58,7 +58,7 @@ extern crate parking_lot;
 extern crate rayon;
 
 extern crate db;
-extern crate chain_pan as chain;
+extern crate chain;
 extern crate params;
 extern crate primitives;
 extern crate serialization as ser;

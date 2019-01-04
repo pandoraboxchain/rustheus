@@ -5,5 +5,5 @@ authors = ["debris <marek.kotewicz@gmail.com>", "conscio <julian.konchunas@gmail
 
 [dependencies]
 lazy_static = "0.2"
-chain_pan = { path = "../chain_pan" }
+chain = { path = "../chain" }
 primitives = { path = "../primitives" }

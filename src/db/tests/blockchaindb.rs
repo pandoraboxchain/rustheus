@@ -1,8 +1,8 @@
-extern crate chain_pan;
+extern crate chain;
 extern crate db;
 extern crate chain_builder;
 
-use chain_pan::IndexedBlock;
+use chain::IndexedBlock;
 use db::kv::{MemoryDatabase, SharedMemoryDatabase};
 use db::{BlockChainDatabase, BlockProvider, SideChainOrigin, ForkChain};
 

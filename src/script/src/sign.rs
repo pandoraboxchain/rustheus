@@ -346,7 +346,7 @@ mod tests {
 	use bytes::Bytes;
 	use hash::H256;
 	use keys::{KeyPair, Private, Address};
-	use chain::{OutPoint, TransactionOutput, Transaction};
+	use chain::{OutPoint, TransactionOutput, PaymentTransaction};
 	use script::Script;
 	use super::{Sighash, UnsignedTransactionInput, TransactionInputSigner, SighashBase, SignatureVersion};
 
@@ -401,7 +401,7 @@ mod tests {
 		hash_type: i32,
 		result: &'static str
 	) {
-		let tx: Transaction = tx.into();
+		let tx: PaymentTransaction = tx.into();
 		let signer: TransactionInputSigner = tx.into();
 		let script: Script = script.into();
 		let expected = H256::from_reversed_str(result);

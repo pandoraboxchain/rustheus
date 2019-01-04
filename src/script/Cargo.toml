@@ -5,7 +5,7 @@ authors = ["debris <marek.kotewicz@gmail.com>"]
 
 [dependencies]
 bitcrypto = { path = "../crypto" }
-chain_pan = { path = "../chain_pan" }
+chain = { path = "../chain" }
 keys = { path = "../keys" }
 primitives = { path = "../primitives" }
 serialization = { path = "../serialization" }

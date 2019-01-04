@@ -17,7 +17,7 @@ jsonrpc-macros = { git = "https://github.com/ethcore/jsonrpc.git" }
 jsonrpc-http-server = { git = "https://github.com/ethcore/jsonrpc.git" }
 
 serialization = { path = "../serialization" }
-chain_pan = { path = "../chain_pan" }
+chain = { path = "../chain" }
 primitives = { path = "../primitives" }
 params = { path = "../params" }
 db = { path = "../db" }

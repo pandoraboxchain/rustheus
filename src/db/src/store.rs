@@ -1,5 +1,5 @@
 use std::sync::Arc;
-use chain_pan::BlockHeader;
+use chain::BlockHeader;
 use {
 	BestBlock, BlockProvider, BlockHeaderProvider, TransactionProvider, TransactionMetaProvider,
 	TransactionOutputProvider, BlockChain, IndexedBlockProvider, Forkable, Error, TransactionUtxoProvider

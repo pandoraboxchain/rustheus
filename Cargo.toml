@@ -13,7 +13,7 @@ parking_lot = { version = "~0.5.5", features = ["deadlock_detection"] } #use exp
 futures-cpupool = "~0.1.8"
 futures = "~0.1.21"
 
-chain_pan = { path = "src/chain_pan" }
+chain = { path = "src/chain" }
 bitcrypto = { path = "src/crypto" }
 serialization = { path = "src/serialization" }
 serialization_derive = { path = "src/serialization_derive" }
@@ -36,7 +36,7 @@ name = "rustheus"
 
 [workspace]
 members = [
-    "src/chain_pan",
+    "src/chain",
     "src/crypto",
     "src/serialization",
     "src/params",

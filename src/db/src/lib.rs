@@ -8,7 +8,7 @@ extern crate lru_cache;
 extern crate primitives;
 extern crate serialization as ser;
 extern crate script;  //TODO maybe get rid of script dependency for db
-extern crate chain_pan;
+extern crate chain;
 
 pub mod kv;
 mod best_block;

@@ -1,6 +1,6 @@
 use hash::H256;
 use bytes::Bytes;
-use chain_pan::{BlockHeader, PaymentTransaction, Block, IndexedBlock, IndexedBlockHeader, IndexedTransaction};
+use chain::{BlockHeader, PaymentTransaction, Block, IndexedBlock, IndexedBlockHeader, IndexedTransaction};
 use {BlockRef};
 
 pub trait BlockHeaderProvider {

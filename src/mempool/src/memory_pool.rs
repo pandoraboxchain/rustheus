@@ -902,7 +902,7 @@ impl<'a> Iterator for MemoryPoolIterator<'a> {
 mod tests {
 	extern crate chain_builder;
 
-	use chain::{Transaction, OutPoint};
+	use chain::{PaymentTransaction, OutPoint};
 	use heapsize::HeapSizeOf;
 	use super::{MemoryPool, OrderingStrategy, DoubleSpendCheckResult};
 	use self::chain_builder::{ChainBuilder, TransactionBuilder};

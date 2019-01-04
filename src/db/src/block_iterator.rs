@@ -1,4 +1,4 @@
-use chain_pan::BlockHeader;
+use chain::BlockHeader;
 use {BlockRef, BlockHeaderProvider};
 
 pub struct BlockIterator<'a> {

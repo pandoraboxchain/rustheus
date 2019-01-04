@@ -15,7 +15,7 @@ memory_pool = { path = "../mempool" }
 db = { path = "../db" }
 bitcrypto = { path = "../crypto" }
 params = { path = "../params" }
-chain_pan = { path = "../chain_pan" }
+chain = { path = "../chain" }
 verification = { path = "../verification" }
 message = { path = "../message" }
 primitives = { path = "../primitives" }

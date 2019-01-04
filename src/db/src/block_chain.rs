@@ -1,5 +1,5 @@
 use hash::H256;
-use chain_pan::{IndexedBlock, IndexedBlockHeader};
+use chain::{IndexedBlock, IndexedBlockHeader};
 use {Error, BlockOrigin, Store, SideChainOrigin};
 
 pub trait ForkChain {

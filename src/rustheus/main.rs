@@ -1,7 +1,7 @@
 #![deny(unused_must_use)] //this deny is needed primarily not to forget to unwrap Sender::send()
 
 extern crate bitcrypto as crypto;
-extern crate chain_pan;
+extern crate chain;
 extern crate clap;
 extern crate ctrlc;
 extern crate db;

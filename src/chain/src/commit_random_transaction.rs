@@ -2,7 +2,6 @@ use hash::H256;
 use hex::FromHex;
 use crypto::dhash256;
 use ser::{serialize, deserialize};
-use ser::{Error, Serializable, Deserializable, Stream, Reader};
 
 #[derive(Debug, PartialEq, Clone, Default, Serializable, Deserializable)]
 pub struct CommitRandomTransaction {

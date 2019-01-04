@@ -9,7 +9,7 @@ extern crate jsonrpc_core;
 extern crate jsonrpc_macros;
 extern crate jsonrpc_http_server;
 extern crate tokio_core;
-extern crate chain_pan as chain;
+extern crate chain;
 extern crate serialization as ser;
 extern crate primitives;
 extern crate params;

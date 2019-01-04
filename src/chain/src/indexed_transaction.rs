@@ -1,13 +1,13 @@
 use std::{cmp, io, fmt};
 use hash::H256;
 use ser::{Deserializable, Reader, Error as ReaderError};
-use transaction::Transaction;
+use payment_transaction::PaymentTransaction;
 use read_and_hash::ReadAndHash;
 
 #[derive(Default, Clone)]
 pub struct IndexedTransaction {
 	pub hash: H256,
-	pub raw: Transaction,
+	pub raw: PaymentTransaction,
 }
 
 impl fmt::Debug for IndexedTransaction {
@@ -19,9 +19,9 @@ impl fmt::Debug for IndexedTransaction {
 	}
 }
 
-impl<T> From<T> for IndexedTransaction where Transaction: From<T> {
+impl<T> From<T> for IndexedTransaction where PaymentTransaction: From<T> {
 	fn from(other: T) -> Self {
-		let tx = Transaction::from(other);
+		let tx = PaymentTransaction::from(other);
 		IndexedTransaction {
 			hash: tx.hash(),
 			raw: tx,
@@ -30,7 +30,7 @@ impl<T> From<T> for IndexedTransaction where Transaction: From<T> {
 }
 
 impl IndexedTransaction {
-	pub fn new(hash: H256, transaction: Transaction) -> Self {
+	pub fn new(hash: H256, transaction: PaymentTransaction) -> Self {
 		IndexedTransaction {
 			hash: hash,
 			raw: transaction,
@@ -46,7 +46,7 @@ impl cmp::PartialEq for IndexedTransaction {
 
 impl Deserializable for IndexedTransaction {
 	fn deserialize<T>(reader: &mut Reader<T>) -> Result<Self, ReaderError> where T: io::Read {
-		let data = try!(reader.read_and_hash::<Transaction>());
+		let data = try!(reader.read_and_hash::<PaymentTransaction>());
 		// TODO: use len
 		let tx = IndexedTransaction {
 			raw: data.data,
