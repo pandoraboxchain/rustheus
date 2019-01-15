@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use chain::{Transaction, TransactionOutput, OutPoint};
+use chain::{PaymentTransaction, TransactionOutput, OutPoint};
 use db::{TransactionOutputProvider, SharedStore};
 use memory_pool::{DoubleSpendCheckResult, HashedOutPoint, NonFinalDoubleSpendSet, MemoryPoolRef};
 use verification::TransactionError;
@@ -21,7 +21,7 @@ pub struct MemoryPoolTransactionOutputProvider {
 
 impl MemoryPoolTransactionOutputProvider {
 	/// Create new provider for verifying given transaction
-	pub fn for_transaction(storage: StorageRef, memory_pool: &MemoryPoolRef, transaction: &Transaction) -> Result<Self, TransactionError> {
+	pub fn for_transaction(storage: StorageRef, memory_pool: &MemoryPoolRef, transaction: &PaymentTransaction) -> Result<Self, TransactionError> {
 		// we have to check if there are another in-mempool transactions which spent same outputs here
 		let memory_pool = memory_pool.read();
 		let check_result = memory_pool.check_double_spend(transaction);

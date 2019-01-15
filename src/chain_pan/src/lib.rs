@@ -18,20 +18,19 @@ mod transaction;
 mod transaction_helper;
 mod payment_transaction;
 mod penalty_transaction;
-
-/// `IndexedBlock` extension
-mod read_and_hash;
-mod indexed_block;
-mod indexed_header;
-mod indexed_transaction;
 mod commit_random_transaction;
 mod reveal_random_transaction;
 mod public_key_transaction;
 mod private_key_transaction;
 mod split_random_transaction;
 
+mod read_and_hash;
+mod indexed_block;
+mod indexed_header;
+mod indexed_transaction;
+
 pub trait RepresentH256 {
-	fn h256(&self) -> hash::H256;
+    fn h256(&self) -> hash::H256;
 }
 
 pub use rustc_serialize::hex;

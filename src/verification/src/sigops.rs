@@ -1,4 +1,4 @@
-use chain::Transaction;
+use chain::PaymentTransaction;
 use db::TransactionOutputProvider;
 use script::{Script, ScriptWitness};
 
@@ -7,7 +7,7 @@ use script::{Script, ScriptWitness};
 /// in previous transactions. If one of the previous transaction outputs is
 /// missing, we simply ignore that fact and just carry on counting
 pub fn transaction_sigops(
-	transaction: &Transaction,
+	transaction: &PaymentTransaction,
 	store: &TransactionOutputProvider,
 ) -> usize {
 	let output_sigops: usize = transaction.outputs.iter().map(|output| {
@@ -38,7 +38,7 @@ pub fn transaction_sigops(
 }
 
 pub fn transaction_sigops_cost(
-	transaction: &Transaction,
+	transaction: &PaymentTransaction,
 	store: &TransactionOutputProvider,
 	sigops: usize,
 ) -> usize {

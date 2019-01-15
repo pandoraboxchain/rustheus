@@ -3,12 +3,12 @@ use ser::{
 	Serializable, Stream, CompactInteger,
 	Deserializable, Reader, Error as ReaderError
 };
-use chain::Transaction;
+use chain::PaymentTransaction;
 
 #[derive(Debug, PartialEq)]
 pub struct PrefilledTransaction {
 	pub index: usize,
-	pub transaction: Transaction,
+	pub transaction: PaymentTransaction,
 }
 
 impl Serializable for PrefilledTransaction {

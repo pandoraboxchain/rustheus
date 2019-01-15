@@ -94,7 +94,7 @@ impl BlockChainClientCoreApi for BlockChainClientCore {
 					mediantime: Some(median_time),
 					difficulty: block.header.raw.bits.to_f64(),
 					chainwork: U256::default(), // TODO: read from storage
-					previousblockhash: Some(block.header.raw.previous_header_hash.clone().into()),
+					previousblockhash: Some(block.header.raw.previous_header_hash[0].clone().into()),
 					nextblockhash: height.and_then(|h| self.storage.block_hash(h + 1).map(|h| h.into())),
 					bits: block.header.raw.bits.into(),
 					hash: block.hash().clone().into(),
@@ -249,7 +249,6 @@ pub mod tests {
 	use v1::types::H256;
 	use v1::types::ScriptType;
 	use chain::OutPoint;
-	use network::Network;
 	use super::*;
 
 	#[derive(Default)]
@@ -443,71 +442,6 @@ pub mod tests {
 	}
 
 	#[test]
-	fn verbose_block_contents() {
-		let storage = Arc::new(BlockChainDatabase::init_test_chain(
-			vec![
-				chain_builder::genesis().into(),
-				chain_builder::block_h1().into(),
-				chain_builder::block_h2().into(),
-			]
-		));
-
-		let core = BlockChainClientCore::new(Network::Mainnet, storage);
-
-		// get info on block #1:
-		// https://blockexplorer.com/block/00000000839a8e6886ab5951d76f411475428afc90947ee320161bbf18eb6048
-		// https://blockchain.info/block/00000000839a8e6886ab5951d76f411475428afc90947ee320161bbf18eb6048
-		// https://webbtc.com/block/00000000839a8e6886ab5951d76f411475428afc90947ee320161bbf18eb6048.json
-		let verbose_block = core.verbose_block("4860eb18bf1b1620e37e9490fc8a427514416fd75159ab86688e9a8300000000".into());
-		assert_eq!(verbose_block, Some(VerboseBlock {
-			hash: "4860eb18bf1b1620e37e9490fc8a427514416fd75159ab86688e9a8300000000".into(),
-			confirmations: 2, // h1 + h2
-			size: 215,
-			strippedsize: 215,
-			weight: 215,
-			height: Some(1),
-			version: 1,
-			version_hex: "1".to_owned(),
-			merkleroot: "982051fd1e4ba744bbbe680e1fee14677ba1a3c3540bf7b1cdb606e857233e0e".into(),
-			tx: vec!["982051fd1e4ba744bbbe680e1fee14677ba1a3c3540bf7b1cdb606e857233e0e".into()],
-			time: 1231469665,
-			mediantime: Some(1231006505),
-			nonce: 2573394689,
-			bits: 486604799,
-			difficulty: 1.0,
-			chainwork: 0.into(),
-			previousblockhash: Some("6fe28c0ab6f1b372c1a6a246ae63f74f931e8365e15a089c68d6190000000000".into()),
-			nextblockhash: Some("bddd99ccfda39da1b108ce1a5d70038d0a967bacb68b6b63065f626a00000000".into()),
-		}));
-
-		// get info on block #2:
-		// https://blockexplorer.com/block/000000006a625f06636b8bb6ac7b960a8d03705d1ace08b1a19da3fdcc99ddbd
-		// https://blockchain.info/ru/block/000000006a625f06636b8bb6ac7b960a8d03705d1ace08b1a19da3fdcc99ddbd
-		// https://webbtc.com/block/000000006a625f06636b8bb6ac7b960a8d03705d1ace08b1a19da3fdcc99ddbd.json
-		let verbose_block = core.verbose_block("bddd99ccfda39da1b108ce1a5d70038d0a967bacb68b6b63065f626a00000000".into());
-		assert_eq!(verbose_block, Some(VerboseBlock {
-			hash: "bddd99ccfda39da1b108ce1a5d70038d0a967bacb68b6b63065f626a00000000".into(),
-			confirmations: 1, // h2
-			size: 215,
-			strippedsize: 215,
-			weight: 215,
-			height: Some(2),
-			version: 1,
-			version_hex: "1".to_owned(),
-			merkleroot: "d5fdcc541e25de1c7a5addedf24858b8bb665c9f36ef744ee42c316022c90f9b".into(),
-			tx: vec!["d5fdcc541e25de1c7a5addedf24858b8bb665c9f36ef744ee42c316022c90f9b".into()],
-			time: 1231469744,
-			mediantime: Some(1231469665),
-			nonce: 1639830024,
-			bits: 486604799,
-			difficulty: 1.0,
-			chainwork: 0.into(),
-			previousblockhash: Some("4860eb18bf1b1620e37e9490fc8a427514416fd75159ab86688e9a8300000000".into()),
-			nextblockhash: None,
-		}));
-	}
-
-	#[test]
 	fn raw_block_success() {
 		let client = BlockChainClient::new(SuccessBlockChainClientCore::default());
 		let mut handler = IoHandler::new();
@@ -584,33 +518,6 @@ pub mod tests {
 			}"#)).unwrap();
 
 		assert_eq!(&sample, r#"{"jsonrpc":"2.0","error":{"code":-32099,"message":"Block with given hash is not found","data":"000000006a625f06636b8bb6ac7b960a8d03705d1ace08b1a19da3fdcc99ddbd"},"id":1}"#);
-	}
-
-	#[test]
-	fn verbose_transaction_out_contents() {
-		let storage = Arc::new(BlockChainDatabase::init_test_chain(vec![chain_builder::genesis().into()]));
-		let core = BlockChainClientCore::new(Network::Mainnet, storage);
-
-		// get info on tx from genesis block:
-		// https://blockchain.info/ru/tx/4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b
-		let verbose_transaction_out = core.verbose_transaction_out(OutPoint {
-			hash: "3ba3edfd7a7b12b27ac72c3e67768f617fc81bc3888a51323a9fb8aa4b1e5e4a".into(),
-			index: 0,
-		});
-		assert_eq!(verbose_transaction_out, Ok(GetTxOutResponse {
-				bestblock: "6fe28c0ab6f1b372c1a6a246ae63f74f931e8365e15a089c68d6190000000000".into(),
-				confirmations: 1,
-				value: 50.0,
-				script: TransactionOutputScript {
-					asm: "OP_PUSHBYTES_65 0x04678afdb0fe5548271967f1a67130b7105cd6a828e03909a67962e0ea1f61deb649f6bc3f4cef38c4f35504e51ec112de5c384df7ba0b8d578a4c702b6bf11d5f\nOP_CHECKSIG\n".to_owned(),
-					hex: Bytes::from("4104678afdb0fe5548271967f1a67130b7105cd6a828e03909a67962e0ea1f61deb649f6bc3f4cef38c4f35504e51ec112de5c384df7ba0b8d578a4c702b6bf11d5fac"),
-					req_sigs: 1,
-					script_type: ScriptType::PubKey,
-					addresses: vec!["1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa".into()]
-				},
-				version: 1,
-				coinbase: true
-			}));
 	}
 
 	#[test]

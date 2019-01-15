@@ -64,7 +64,7 @@ impl<F> Invoke<chain::Block> for BlockHashBuilder<F>
 pub struct BlockBuilder<F=Identity> {
 	callback: F,
 	header: Option<chain::BlockHeader>,
-	transactions: Vec<chain::Transaction>,
+	transactions: Vec<chain::PaymentTransaction>,
 }
 
 impl BlockBuilder {
@@ -87,13 +87,13 @@ impl<F> BlockBuilder<F> where F: Invoke<chain::Block> {
 		self
 	}
 
-	pub fn with_transaction(mut self, transaction: chain::Transaction) -> Self {
+	pub fn with_transaction(mut self, transaction: chain::PaymentTransaction) -> Self {
 		self.transactions.push(transaction);
 		self
 	}
 
 	pub fn with_transactions<I>(mut self, txs: I) -> Self
-		where I: IntoIterator<Item=chain::Transaction>
+		where I: IntoIterator<Item=chain::PaymentTransaction>
 	{
 		self.transactions.extend(txs);
 		self
@@ -180,12 +180,12 @@ impl<F> Invoke<chain::BlockHeader> for BlockBuilder<F>
 	}
 }
 
-impl<F> Invoke<chain::Transaction> for BlockBuilder<F>
+impl<F> Invoke<chain::PaymentTransaction> for BlockBuilder<F>
 	where F: Invoke<chain::Block>
 {
 	type Result = Self;
 
-	fn invoke(self, tx: chain::Transaction) -> Self {
+	fn invoke(self, tx: chain::PaymentTransaction) -> Self {
 		self.with_transaction(tx)
 	}
 }
@@ -250,7 +250,7 @@ impl<F> BlockHeaderBuilder<F> where F: Invoke<chain::BlockHeader> {
 		self.callback.invoke(
 			chain::BlockHeader {
 				time: self.time,
-				previous_header_hash: self.parent,
+				previous_header_hash: vec![self.parent],
 				bits: self.bits,
 				nonce: self.nonce,
 				merkle_root_hash: self.merkle_root,
@@ -269,7 +269,7 @@ pub struct TransactionBuilder<F=Identity> {
 	outputs: Vec<chain::TransactionOutput>,
 }
 
-impl<F> TransactionBuilder<F> where F: Invoke<chain::Transaction> {
+impl<F> TransactionBuilder<F> where F: Invoke<chain::PaymentTransaction> {
 	fn with_callback(callback: F) -> Self {
 		TransactionBuilder {
 			callback: callback,
@@ -338,7 +338,7 @@ impl<F> TransactionBuilder<F> where F: Invoke<chain::Transaction> {
 
 	pub fn build(self) -> F::Result {
 		self.callback.invoke(
-			chain::Transaction {
+			chain::PaymentTransaction {
 				lock_time: self.lock_time,
 				version: self.version,
 				inputs: self.inputs,
@@ -350,7 +350,7 @@ impl<F> TransactionBuilder<F> where F: Invoke<chain::Transaction> {
 
 
 impl<F> Invoke<chain::TransactionInput> for TransactionBuilder<F>
-	where F: Invoke<chain::Transaction>
+	where F: Invoke<chain::PaymentTransaction>
 {
 	type Result = Self;
 
@@ -360,7 +360,7 @@ impl<F> Invoke<chain::TransactionInput> for TransactionBuilder<F>
 }
 
 impl<F> Invoke<chain::TransactionOutput> for TransactionBuilder<F>
-	where F: Invoke<chain::Transaction>
+	where F: Invoke<chain::PaymentTransaction>
 {
 	type Result = Self;
 
@@ -586,7 +586,7 @@ fn example5() {
 		.build();
 
 	assert_eq!(hash, "3e24319d69a77c58e2da8c7331a21729482835c96834dafb3e1793c1253847c7".into());
-	assert_eq!(block.header().previous_header_hash, "0000000000000000000000000000000000000000000000000000000000000000".into());
+	assert_eq!(block.header().previous_header_hash, vec!["0000000000000000000000000000000000000000000000000000000000000000".into()]);
 }
 
 #[test]

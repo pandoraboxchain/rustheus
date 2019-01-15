@@ -1,5 +1,5 @@
 use chain::IndexedBlock;
-use chain::{Block, Transaction};
+use chain::{Block, PaymentTransaction};
 use db::Error as DBError;
 use db::SharedStore;
 use memory_pool::MemoryPoolRef;
@@ -49,8 +49,8 @@ impl Acceptor {
 
     pub fn accept_transaction(
         &self,
-        transaction: Transaction,
-    ) -> impl Future<Item = Transaction, Error = TransactionError> {
+        transaction: PaymentTransaction,
+    ) -> impl Future<Item = PaymentTransaction, Error = TransactionError> {
         let future = self.async_accept_transaction(transaction);
         self.cpupool.spawn(future)
     }
@@ -62,8 +62,8 @@ impl Acceptor {
 
     pub fn async_accept_transaction(
         &self,
-        transaction: Transaction,
-    ) -> impl Future<Item = Transaction, Error = TransactionError> {
+        transaction: PaymentTransaction,
+    ) -> impl Future<Item = PaymentTransaction, Error = TransactionError> {
         done(self.try_accept_transaction(transaction))
     }
 
@@ -108,7 +108,7 @@ impl Acceptor {
         }
     }
 
-    fn try_accept_transaction(&self, transaction: Transaction) -> Result<Transaction, TransactionError> {
+    fn try_accept_transaction(&self, transaction: PaymentTransaction) -> Result<PaymentTransaction, TransactionError> {
         let hash = transaction.hash();
         if self.mempool.read().contains(&hash) {
             trace!(target: "handler", "Received transaction which already exists in mempool. Ignoring");
@@ -135,9 +135,9 @@ impl Acceptor {
 
     fn try_accept_transaction_with_output_provider(
         &self,
-        transaction: Transaction,
+        transaction: PaymentTransaction,
         tx_output_provider: MemoryPoolTransactionOutputProvider,
-    ) -> Result<Transaction, TransactionError> {
+    ) -> Result<PaymentTransaction, TransactionError> {
         let height = self.store.best_block().number;
         match self.verifier.verify_mempool_transaction(
             &tx_output_provider,

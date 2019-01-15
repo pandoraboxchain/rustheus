@@ -1,5 +1,5 @@
 use chain::constants::SEQUENCE_LOCKTIME_DISABLE_FLAG;
-use chain::{OutPoint, Transaction};
+use chain::{TransactionInput, TransactionOutput, PaymentTransaction, OutPoint};
 //use chain_builder::TransactionBuilder;
 use db::SharedStore;
 use keys::{Address, Private};
@@ -11,7 +11,6 @@ use std::sync::mpsc::Receiver;
 use sync::MessageWrapper;
 use wallet::{Wallet, WalletRef};
 use transaction_helper::TransactionHelperRef;
-use chain::{TransactionInput, TransactionOutput};
 
 #[derive(Debug, PartialEq)]
 pub enum Task {
@@ -79,7 +78,7 @@ impl WalletManager {
     fn send_cash(&self, recipient: Address, amount: u64) {
         if !self.wallet.read().is_ready() { return; }
 
-        let transaction = Transaction {
+        let transaction = PaymentTransaction {
             version: 0,
             inputs: vec![],
             outputs: vec![
@@ -88,8 +87,7 @@ impl WalletManager {
                     script_pubkey: Builder::build_p2wpkh(&recipient.hash).to_bytes(),
                 },
             ],
-            lock_time: 0,
-        };
+            lock_time: 0};
 
         //TODO pattern match returned results
         let funded_transaction = match self.transaction_helper.fund_transaction(transaction) {

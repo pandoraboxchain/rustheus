@@ -5,7 +5,7 @@ use parking_lot::RwLock;
 use hash::H256;
 use bytes::Bytes;
 use ser::List;
-use chain::{Transaction as ChainTransaction, BlockHeader};
+use chain::{PaymentTransaction as ChainTransaction, BlockHeader};
 use kv::{Transaction, Key, KeyState, Operation, Value, KeyValueDatabase, KeyValue};
 use {TransactionMeta};
 

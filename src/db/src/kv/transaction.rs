@@ -1,7 +1,7 @@
 use bytes::Bytes;
 use hash::H256;
 use ser::{serialize, List, deserialize};
-use chain::{Transaction as ChainTransaction, BlockHeader};
+use chain::{PaymentTransaction as ChainTransaction, BlockHeader};
 use {TransactionMeta};
 
 pub const COL_COUNT: u32 = 10;

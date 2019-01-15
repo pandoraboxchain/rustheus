@@ -1,5 +1,6 @@
-use chain::{Block, BlockHeader, Transaction, TransactionInput, TransactionOutput};
+use chain::{Block, BlockHeader, TransactionInput, TransactionOutput};
 use chain::IndexedBlock;
+use chain::PaymentTransaction;
 use crypto::DHash256;
 use std::sync::mpsc::Receiver;
 use memory_pool::MemoryPoolRef;
@@ -73,7 +74,7 @@ impl Executor {
 
         let header = BlockHeader {
             version: 1,
-            previous_header_hash: self.store.best_block().hash,
+            previous_header_hash: vec![self.store.best_block().hash],
             merkle_root_hash: DHash256::default().finish(),
             witness_merkle_root_hash: Default::default(),
             time: time_since_the_epoch.as_secs() as u32,
@@ -86,7 +87,7 @@ impl Executor {
         //TODO take not fixed number of transactions, but deduce it from block size
         let indexed_transactions =
             mempool.remove_n_with_strategy(50, OrderingStrategy::ByTransactionScore);
-        let block_tx: Vec<Transaction> =
+        let block_tx: Vec<PaymentTransaction> =
             indexed_transactions.into_iter().map(|tx| tx.raw).collect();
         transactions.extend(block_tx);
         let mut block = Block::new(header, transactions);
@@ -110,7 +111,7 @@ impl Executor {
         }
     }
 
-    fn create_coinbase(&self, recipient: Address) -> Transaction {
+    fn create_coinbase(&self, recipient: Address) -> PaymentTransaction {
         let block_height = self.store.best_block().number + 1;
 
         //add block height as coinbase prefix
@@ -118,7 +119,7 @@ impl Executor {
             .push_num(block_height.into())
             .into_script();
 
-        Transaction {
+        PaymentTransaction {
             version: 0,
             inputs: vec![TransactionInput::coinbase(prefix.into())],
             outputs: vec![

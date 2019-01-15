@@ -8,7 +8,7 @@ use v1::types::{GetRawTransactionResponse, RawTransaction, Transaction, Transact
                 TransactionOutput, TransactionOutputs};
 use v1::types::H256;
 use v1::helpers::errors::{execution, invalid_params};
-use chain::Transaction as GlobalTransaction;
+use chain::PaymentTransaction as GlobalTransaction;
 use primitives::bytes::Bytes as GlobalBytes;
 use primitives::hash::H256 as GlobalH256;
 use jsonrpc_core::futures::Future;
@@ -172,7 +172,7 @@ impl<T> Raw for RawClient<T> where T: RawClientCoreApi {
 pub mod tests {
 	use jsonrpc_macros::Trailing;
 	use jsonrpc_core::IoHandler;
-	use chain::Transaction;
+	use chain::PaymentTransaction;
 	use primitives::hash::H256 as GlobalH256;
 	use v1::traits::Raw;
 	use v1::types::{TransactionInput, TransactionOutputs};
@@ -184,7 +184,7 @@ pub mod tests {
 	struct ErrorRawClientCore;
 
 	impl RawClientCoreApi for SuccessRawClientCore {
-		fn accept_transaction(&self, transaction: Transaction) -> Result<GlobalH256, String> {
+		fn accept_transaction(&self, transaction: PaymentTransaction) -> Result<GlobalH256, String> {
 			Ok(transaction.hash())
 		}
 
@@ -193,13 +193,13 @@ pub mod tests {
 			_inputs: Vec<TransactionInput>,
 			_outputs: TransactionOutputs,
 			_lock_time: Trailing<u32>,
-		) -> Result<Transaction, String> {
+		) -> Result<PaymentTransaction, String> {
 			Ok("0100000001ad9d38823d95f31dc6c0cb0724c11a3cf5a466ca4147254a10cd94aade6eb5b3230000006b483045022100b7683165c3ecd57b0c44bf6a0fb258dc08c328458321c8fadc2b9348d4e66bd502204fd164c58d1a949a4d39bb380f8f05c9f6b3e9417f06bf72e5c068428ca3578601210391c35ac5ee7cf82c5015229dcff89507f83f9b8c952b8fecfa469066c1cb44ccffffffff0170f30500000000001976a914801da3cb2ed9e44540f4b982bde07cd3fbae264288ac00000000".into())
 		}
 	}
 
 	impl RawClientCoreApi for ErrorRawClientCore {
-		fn accept_transaction(&self, _transaction: Transaction) -> Result<GlobalH256, String> {
+		fn accept_transaction(&self, _transaction: PaymentTransaction) -> Result<GlobalH256, String> {
 			Err("error".to_owned())
 		}
 
@@ -208,7 +208,7 @@ pub mod tests {
 			_inputs: Vec<TransactionInput>,
 			_outputs: TransactionOutputs,
 			_lock_time: Trailing<u32>,
-		) -> Result<Transaction, String> {
+		) -> Result<PaymentTransaction, String> {
 			Err("error".to_owned())
 		}
 	}

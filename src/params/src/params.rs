@@ -64,12 +64,12 @@ impl NetworkParams {
 	//address: 1KFoaRnZLw9DYhNVMfft84YHAVbLMRmWv5
 
 	pub fn genesis_block(&self) -> Block {
-		use chain::{Block, BlockHeader, Transaction, TransactionInput, TransactionOutput};
+		use chain::{Block, BlockHeader, PaymentTransaction, TransactionInput, TransactionOutput};
 		match *self {
 			NetworkParams::Mainnet | NetworkParams::Other(_) =>
 			{
 				let destination_locking_witness_program = "0014c83ef7b094d48e873f0e13db7892dfe5120418be".into();
-				let transaction = Transaction {
+				let transaction = PaymentTransaction {
 					version: 0,
 					inputs: vec![ TransactionInput::coinbase("0100".into()) ], //push 1 byte containing block height
 					outputs: vec![ TransactionOutput {
@@ -84,7 +84,7 @@ impl NetworkParams {
 					block_header: BlockHeader
 					{
 						version: 1,
-						previous_header_hash: 0.into(),
+						previous_header_hash: vec![0.into()],
 						merkle_root_hash: 0.into(),
 						witness_merkle_root_hash: 0.into(),
 						time: 1234567,

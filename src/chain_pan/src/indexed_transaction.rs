@@ -4,6 +4,8 @@ use ser::{Deserializable, Reader, Error as ReaderError};
 use payment_transaction::PaymentTransaction;
 use read_and_hash::ReadAndHash;
 
+//TODO create separeted impl for pan tx,s
+
 #[derive(Default, Clone)]
 pub struct IndexedTransaction {
 	pub hash: H256,
@@ -32,7 +34,7 @@ impl<T> From<T> for IndexedTransaction where PaymentTransaction: From<T> {
 impl IndexedTransaction {
 	pub fn new(hash: H256, transaction: PaymentTransaction) -> Self {
 		IndexedTransaction {
-			hash: hash,
+			hash,
 			raw: transaction,
 		}
 	}

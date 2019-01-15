@@ -59,13 +59,13 @@ impl Transaction {
 
     pub fn is_final_in_block(&self, block_height: u32, block_time: u32) -> bool {
         match self {
-            &Transaction::PaymentTransaction(ref _tx) => { true },
-            &Transaction::PenaltyTransaction(ref _tx) => { true },
-            &Transaction::CommitRandomTransaction(ref _tx) => { true },
-            &Transaction::RevealRandomTransaction(ref _tx) => { true },
-            &Transaction::PublicKeyTransaction(ref _tx) => { true },
-            &Transaction::PrivateKeyTransaction(ref _tx) => { true },
-            &Transaction::SplitRandomTransaction(ref _tx) => { true }
+            &Transaction::PaymentTransaction(ref tx) => { true },
+            &Transaction::PenaltyTransaction(ref tx) => { true },
+            &Transaction::CommitRandomTransaction(ref tx) => { true },
+            &Transaction::RevealRandomTransaction(ref tx) => { true },
+            &Transaction::PublicKeyTransaction(ref tx) => { true },
+            &Transaction::PrivateKeyTransaction(ref tx) => { true },
+            &Transaction::SplitRandomTransaction(ref tx) => { true }
         }
     }
 }

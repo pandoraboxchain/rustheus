@@ -1,11 +1,14 @@
 [package]
 name = "chain"
 version = "0.1.0"
-authors = ["debris <marek.kotewicz@gmail.com>"]
+authors = ["debris <marek.kotewicz@gmail.com>",
+           "extended by Sergey <korostelyov@panaadoraboxchain.ai>",
+           "and Julian <https://github.com/konchunas>"]
 
 [dependencies]
 rustc-serialize = "0.3"
 heapsize = "0.4"
+keys = { path = "../keys"}
 bitcrypto = { path = "../crypto" }
 primitives = { path = "../primitives" }
 serialization = { path = "../serialization" }

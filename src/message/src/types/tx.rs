@@ -1,15 +1,15 @@
 use std::io;
 use ser::{Stream, Reader};
-use chain::Transaction;
+use chain::PaymentTransaction;
 use {Payload, MessageResult};
 
 #[derive(Debug, PartialEq)]
 pub struct Tx {
-	pub transaction: Transaction,
+	pub transaction: PaymentTransaction,
 }
 
 impl Tx {
-	pub fn with_transaction(transaction: Transaction) -> Self {
+	pub fn with_transaction(transaction: PaymentTransaction) -> Self {
 		Tx {
 			transaction: transaction,
 		}

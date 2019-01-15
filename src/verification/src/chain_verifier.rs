@@ -1,7 +1,7 @@
 //! Bitcoin chain verifier
 
 use hash::H256;
-use chain::{IndexedBlock, IndexedBlockHeader, BlockHeader, Transaction};
+use chain::{IndexedBlock, IndexedBlockHeader, BlockHeader, PaymentTransaction};
 use db::{SharedStore, TransactionOutputProvider, BlockHeaderProvider, BlockOrigin};
 use params::ConsensusParams;
 use error::{Error, TransactionError};
@@ -88,7 +88,7 @@ impl BackwardsCompatibleChainVerifier {
 		prevout_provider: &T,
 		height: u32,
 		time: u32,
-		transaction: &Transaction,
+		transaction: &PaymentTransaction,
 	) -> Result<(), TransactionError> where T: TransactionOutputProvider {
 		let indexed_tx = transaction.clone().into();
 		// let's do preverification first
